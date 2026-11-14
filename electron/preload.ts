@@ -30,6 +30,14 @@ const electronAPI = {
     fileSize?: number
   }> => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_AUDIO),
 
+  openBackgroundFileDialog: (): Promise<{
+    canceled: boolean
+    filePath?: string
+    fileName?: string
+    fileSize?: number
+    mediaType?: 'image' | 'video'
+  }> => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_BACKGROUND),
+
   readAudioBuffer: (filePath: string): Promise<Uint8Array> =>
     ipcRenderer.invoke(IPC_CHANNELS.MEDIA_READ_BUFFER, filePath),
 
@@ -41,8 +49,7 @@ const electronAPI = {
 
   // Helper to convert safe local path to d2-media URL
   getMediaUrl: (filePath: string): string => {
-    const normalized = filePath.replace(/\\/g, '/')
-    return `d2-media://${encodeURIComponent(normalized)}`
+    return `d2-media://media/?path=${encodeURIComponent(filePath)}`
   },
 }
 

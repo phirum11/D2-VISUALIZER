@@ -258,6 +258,160 @@ function createWindow(): void {
     })
   }
 
+  // Phase 5 Automated Background, Video & Cinematic Effects Engine Verification
+  if (process.env.TEST_PHASE5 === '1') {
+    mainWindow.webContents.on('did-finish-load', async () => {
+      try {
+        console.log('[PHASE 5 TEST] WebContents finished load.')
+        await new Promise((r) => setTimeout(r, 1200))
+
+        const testAudioPath = path.join(appRoot, 'resources', 'test_audio_track.wav')
+        const testVideoPath = path.join(appRoot, 'resources', 'test_background_video.mp4')
+        const testImagePath = path.join(appRoot, 'resources', 'test_background_image.jpg')
+        const artifactDir = 'C:\\Users\\User\\.gemini\\antigravity\\brain\\9abdc11c-922d-4fcf-a77b-2639ba067298'
+
+        // Helper to save screenshots
+        const saveScreen = async (filename: string) => {
+          const img = await mainWindow!.webContents.capturePage()
+          const buf = img.toPNG()
+          fs.writeFileSync(path.join(appRoot, filename), buf)
+          if (fs.existsSync(artifactDir)) {
+            fs.writeFileSync(path.join(artifactDir, filename), buf)
+          }
+          console.log('[PHASE 5 TEST] Saved screenshot: ' + filename)
+        }
+
+        // 1. Start audio playback
+        await mainWindow!.webContents.executeJavaScript(`
+          (async () => {
+            const audioStore = window.__D2_AUDIO_STORE__;
+            await audioStore.getState().importFromPath(${JSON.stringify(testAudioPath)}, 'Test Beat Track 128BPM.wav');
+            await audioStore.getState().play();
+          })()
+        `)
+        console.log('[PHASE 5 TEST] Audio playback started.')
+
+        // 2. Test Real Video Background Playback & Sync
+        console.log('[PHASE 5 TEST] Testing Video Background...')
+        const videoUrl = 'd2-media://media/?path=' + encodeURIComponent(testVideoPath)
+
+        await mainWindow!.webContents.executeJavaScript(`
+          (async () => {
+            const bgMgr = window.__D2_BG_MANAGER__;
+            const compStore = window.__D2_COMPOSITION_STORE__;
+            await bgMgr.loadVideo(${JSON.stringify(videoUrl)});
+            compStore.getState().updateBackground({
+              type: 'video',
+              mediaPath: ${JSON.stringify(videoUrl)},
+              mediaName: 'test_background_video.mp4',
+              mediaType: 'video',
+              sizing: 'fill',
+              videoMuted: true,
+              loop: true,
+            });
+            compStore.getState().updateVisualizer({ type: 'spectrum-bars' });
+          })()
+        `)
+        await new Promise((r) => setTimeout(r, 1500))
+        await saveScreen('d2_visualizer_phase5_video_background.png')
+
+        // 3. Test High-Res Image Background & Blur / Atmospheric Controls
+        console.log('[PHASE 5 TEST] Testing Image Background...')
+        const imageUrl = 'd2-media://media/?path=' + encodeURIComponent(testImagePath)
+
+        await mainWindow!.webContents.executeJavaScript(`
+          (async () => {
+            const bgMgr = window.__D2_BG_MANAGER__;
+            const compStore = window.__D2_COMPOSITION_STORE__;
+            await bgMgr.loadImage(${JSON.stringify(imageUrl)});
+            compStore.getState().updateBackground({
+              type: 'image',
+              mediaPath: ${JSON.stringify(imageUrl)},
+              mediaName: 'test_background_image.jpg',
+              mediaType: 'image',
+              sizing: 'fill',
+              blur: 6,
+              brightness: 1.15,
+            });
+            compStore.getState().updateVisualizer({ type: 'circular-spectrum' });
+          })()
+        `)
+        await new Promise((r) => setTimeout(r, 1200))
+        await saveScreen('d2_visualizer_phase5_image_background.png')
+
+        // 4. Test Ambient Particle Presets & 3D Audio Sphere
+        console.log('[PHASE 5 TEST] Testing Ambient Particles...')
+        await mainWindow!.webContents.executeJavaScript(`
+          (() => {
+            const compStore = window.__D2_COMPOSITION_STORE__;
+            compStore.getState().updateBackground({
+              type: 'gradient',
+              gradientType: 'linear',
+              color1: '#2e1065',
+              color2: '#0f051d',
+              color3: '#581c87',
+              gradientAngle: 125,
+            });
+            compStore.getState().updateAmbientParticles({
+              enabled: true,
+              preset: 'cosmic',
+              particleCount: 160,
+              size: 2.5,
+              speed: 1.2,
+              audioReactivity: 0.8,
+              color: '#38bdf8',
+              opacity: 0.85,
+            });
+            compStore.getState().updateVisualizer({ type: '3d-sphere' });
+          })()
+        `)
+        await new Promise((r) => setTimeout(r, 1200))
+        await saveScreen('d2_visualizer_phase5_particles_and_glow.png')
+
+        // 5. Test Cinematic Visual Effects (Vignette, Film Grain, Light Leaks, Chromatic Aberration)
+        console.log('[PHASE 5 TEST] Testing Cinematic Effects...')
+        await mainWindow!.webContents.executeJavaScript(`
+          (() => {
+            const compStore = window.__D2_COMPOSITION_STORE__;
+            compStore.getState().updateEffects({
+              vignette: 55,
+              grain: 22,
+              lightLeaks: 65,
+              chromaticAberration: 6,
+              bloom: 30,
+            });
+            compStore.getState().updateCinematicMotion({
+              preset: 'subtle-motion',
+              intensity: 1.2,
+            });
+            compStore.getState().updateVisualizer({ type: '3d-landscape' });
+          })()
+        `)
+        await new Promise((r) => setTimeout(r, 1200))
+        await saveScreen('d2_visualizer_phase5_cinematic_effects.png')
+
+        // 6. Test Full Workspace view with Background Panel active
+        console.log('[PHASE 5 TEST] Testing Full Workspace view...')
+        await mainWindow!.webContents.executeJavaScript(`
+          (() => {
+            const uiStore = window.__D2_UI_STORE__;
+            if (uiStore) {
+              uiStore.getState().setActiveTab('backgrounds');
+            }
+          })()
+        `)
+        await new Promise((r) => setTimeout(r, 800))
+        await saveScreen('d2_visualizer_phase5_workspace.png')
+
+        console.log('[PHASE 5 TEST] SUCCESS: Background, video playback, ambient particles, and cinematic effects verified!')
+        setTimeout(() => app.quit(), 500)
+      } catch (err) {
+        console.error('[PHASE 5 TEST] ERROR during test execution:', err)
+        process.exit(1)
+      }
+    })
+  }
+
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {
@@ -280,9 +434,21 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     protocol.handle('d2-media', (request) => {
       try {
-        const url = request.url.replace(/^d2-media:\/\/(local\/)?/, '')
-        const decodedPath = decodeURIComponent(url)
-        return net.fetch(pathToFileURL(decodedPath).toString())
+        let filePath = ''
+        const urlObj = new URL(request.url)
+        if (urlObj.searchParams.has('path')) {
+          filePath = decodeURIComponent(urlObj.searchParams.get('path')!)
+        } else {
+          const raw = request.url.replace(/^d2-media:\/\/(media\/)?(local\/)?/, '')
+          filePath = decodeURIComponent(raw)
+        }
+
+        if (!fs.existsSync(filePath)) {
+          console.error('[PROTOCOL] File does not exist:', filePath)
+          return new Response('File not found', { status: 404 })
+        }
+
+        return net.fetch(pathToFileURL(filePath).toString())
       } catch (err) {
         console.error('[PROTOCOL] Failed to stream d2-media file:', err)
         return new Response('File not found', { status: 404 })

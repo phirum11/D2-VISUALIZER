@@ -46,6 +46,61 @@ export function registerMediaIpcHandlers(mainWindow: BrowserWindow): void {
     }
   })
 
+  // Open Native Background Media Picker (Images and Videos)
+  ipcMain.handle(IPC_CHANNELS.DIALOG_OPEN_BACKGROUND, async () => {
+    if (mainWindow.isDestroyed()) return { canceled: true }
+
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Import Background Media — D2 VISUALIZER',
+      buttonLabel: 'Import Background',
+      properties: ['openFile'],
+      filters: [
+        {
+          name: 'All Supported Media',
+          extensions: ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'webm'],
+        },
+        {
+          name: 'Image Files',
+          extensions: ['jpg', 'jpeg', 'png', 'webp'],
+        },
+        {
+          name: 'Video Files',
+          extensions: ['mp4', 'webm'],
+        },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    })
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { canceled: true }
+    }
+
+    const filePath = result.filePaths[0]
+    const fileName = path.basename(filePath)
+    const ext = path.extname(filePath).toLowerCase().replace('.', '')
+    const isVideo = ext === 'mp4' || ext === 'webm'
+
+    try {
+      const stats = fs.statSync(filePath)
+      return {
+        canceled: false,
+        filePath,
+        fileName,
+        fileSize: stats.size,
+        mediaType: isVideo ? ('video' as const) : ('image' as const),
+      }
+    } catch (err) {
+      console.error('[MEDIA IPC] Failed to read background file stats:', err)
+      return {
+        canceled: false,
+        filePath,
+        fileName,
+        fileSize: 0,
+        mediaType: isVideo ? ('video' as const) : ('image' as const),
+      }
+    }
+  })
+
   // Read Audio File as binary Buffer (for AudioContext.decodeAudioData)
   ipcMain.handle(
     IPC_CHANNELS.MEDIA_READ_BUFFER,

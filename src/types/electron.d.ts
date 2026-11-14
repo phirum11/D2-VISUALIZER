@@ -5,6 +5,14 @@ export interface OpenAudioResult {
   fileSize?: number
 }
 
+export interface OpenBackgroundResult {
+  canceled: boolean
+  filePath?: string
+  fileName?: string
+  fileSize?: number
+  mediaType?: 'image' | 'video'
+}
+
 export interface FileStatsResult {
   size: number
   name: string
@@ -26,6 +34,7 @@ export interface ElectronAPI {
 
   // Media & Audio IPC
   openAudioFileDialog: () => Promise<OpenAudioResult>
+  openBackgroundFileDialog: () => Promise<OpenBackgroundResult>
   readAudioBuffer: (filePath: string) => Promise<Uint8Array>
   getFileStats: (filePath: string) => Promise<FileStatsResult>
   getMediaUrl: (filePath: string) => string
