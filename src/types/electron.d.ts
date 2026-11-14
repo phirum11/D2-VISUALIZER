@@ -35,6 +35,7 @@ export interface ElectronAPI {
   // Media & Audio IPC
   openAudioFileDialog: () => Promise<OpenAudioResult>
   openBackgroundFileDialog: () => Promise<OpenBackgroundResult>
+  openImageFileDialog: () => Promise<OpenAudioResult>
   readAudioBuffer: (filePath: string) => Promise<Uint8Array>
   getFileStats: (filePath: string) => Promise<FileStatsResult>
   getMediaUrl: (filePath: string) => string

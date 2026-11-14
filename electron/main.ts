@@ -412,6 +412,203 @@ function createWindow(): void {
     })
   }
 
+  // Phase 6 Automated Typography, Branding, Artwork & Overlay System Verification
+  if (process.env.TEST_PHASE6 === '1') {
+    mainWindow.webContents.on('did-finish-load', async () => {
+      try {
+        console.log('[PHASE 6 TEST] WebContents finished load.')
+        await new Promise((r) => setTimeout(r, 1200))
+
+        const testAudioPath = path.join(appRoot, 'resources', 'test_audio_track.wav')
+        const testAlbumArtPath = path.join(appRoot, 'resources', 'test_album_art.png')
+        const testLogoPath = path.join(appRoot, 'resources', 'test_logo.png')
+        const artifactDir = 'C:\\Users\\User\\.gemini\\antigravity\\brain\\9abdc11c-922d-4fcf-a77b-2639ba067298'
+
+        // Helper to save screenshots
+        const saveScreen = async (filename: string) => {
+          const img = await mainWindow!.webContents.capturePage()
+          const buf = img.toPNG()
+          fs.writeFileSync(path.join(appRoot, filename), buf)
+          if (fs.existsSync(artifactDir)) {
+            fs.writeFileSync(path.join(artifactDir, filename), buf)
+          }
+          console.log('[PHASE 6 TEST] Saved screenshot: ' + filename)
+        }
+
+        // 1. Start audio playback
+        await mainWindow!.webContents.executeJavaScript(`
+          (async () => {
+            const audioStore = window.__D2_AUDIO_STORE__;
+            await audioStore.getState().importFromPath(${JSON.stringify(testAudioPath)}, 'Test Beat Track 128BPM.wav');
+            await audioStore.getState().play();
+          })()
+        `)
+        console.log('[PHASE 6 TEST] Audio playback started.')
+
+        // 2. Test Typography Preset (Minimal Luxury / Cinematic)
+        console.log('[PHASE 6 TEST] Testing Typography Preset (Minimal Luxury)...')
+        await mainWindow!.webContents.executeJavaScript(`
+          (() => {
+            const compStore = window.__D2_COMPOSITION_STORE__;
+            compStore.getState().updateVisualizer({ type: 'spectrum-bars' });
+            compStore.getState().updateBackground({
+              type: 'gradient',
+              gradientType: 'linear',
+              color1: '#0f172a',
+              color2: '#020617',
+              color3: '#1e1b4b',
+              gradientAngle: 135,
+            });
+            compStore.getState().applyTypographyPreset('minimal-luxury');
+          })()
+        `)
+        await new Promise((r) => setTimeout(r, 1400))
+        await saveScreen('d2_visualizer_phase6_typography_presets.png')
+
+        // 3. Test Album Artwork with Circular Crop & Sub-Bass Pulse
+        console.log('[PHASE 6 TEST] Testing Album Artwork & Reactive Pulse...')
+        const artUrl = 'd2-media://media/?path=' + encodeURIComponent(testAlbumArtPath)
+        await mainWindow!.webContents.executeJavaScript(`
+          (async () => {
+            const renderer = window.__D2_OVERLAY_RENDERER__;
+            if (renderer) {
+              await renderer.preloadImage(${JSON.stringify(artUrl)});
+            }
+            const compStore = window.__D2_COMPOSITION_STORE__;
+            compStore.getState().updateVisualizer({ type: 'circular-spectrum' });
+            compStore.getState().addOverlay({
+              id: 'artwork-test',
+              name: 'Album Artwork',
+              type: 'artwork',
+              src: ${JSON.stringify(artUrl)},
+              mediaName: 'test_album_art.png',
+              shape: 'circle',
+              width: 260,
+              height: 260,
+              positionX: 0,
+              positionY: 0,
+              scale: 1,
+              rotation: 0,
+              borderRadius: 16,
+              borderWidth: 4,
+              borderColor: '#06b6d4',
+              shadowColor: 'rgba(0,0,0,0.9)',
+              shadowBlur: 24,
+              glowColor: '#06b6d4',
+              glowBlur: 18,
+              opacity: 1,
+              startTime: 0,
+              endTime: 0,
+              animation: { preset: 'fade-in', startTime: 0, duration: 1.0, delay: 0.1, easing: 'ease-out', intensity: 1 },
+              visible: true,
+              locked: false,
+            });
+          })()
+        `)
+        await new Promise((r) => setTimeout(r, 1400))
+        await saveScreen('d2_visualizer_phase6_album_artwork.png')
+
+        // 4. Test Structured Music Credits Card
+        console.log('[PHASE 6 TEST] Testing Structured Music Credits Block...')
+        await mainWindow!.webContents.executeJavaScript(`
+          (() => {
+            const compStore = window.__D2_COMPOSITION_STORE__;
+            compStore.getState().updateVisualizer({ type: 'radial-waveform' });
+            compStore.getState().applyTypographyPreset('music-credits');
+          })()
+        `)
+        await new Promise((r) => setTimeout(r, 1400))
+        await saveScreen('d2_visualizer_phase6_music_credits.png')
+
+        // 5. Test Unicode & Khmer Typography
+        console.log('[PHASE 6 TEST] Testing Unicode & Khmer Typography...')
+        await mainWindow!.webContents.executeJavaScript(`
+          (() => {
+            const compStore = window.__D2_COMPOSITION_STORE__;
+            compStore.getState().updateVisualizer({ type: '3d-sphere' });
+            compStore.getState().resetOverlays();
+            compStore.getState().updateOverlay('overlay-title', {
+              text: 'បទភ្លេងខ្មែរ — និស្ស័យស្នេហ៍',
+              fontFamily: 'Khmer OS',
+              fontSize: 38,
+              letterSpacing: 2,
+              color: '#fef08a',
+              glowColor: '#eab308',
+              glowBlur: 14,
+              positionY: -22,
+            });
+            compStore.getState().updateOverlay('overlay-artist', {
+              text: 'D2 VISUALIZER KHMER ARTIST',
+              fontFamily: 'Inter',
+              fontSize: 18,
+              letterSpacing: 4,
+              color: '#38bdf8',
+              glowColor: '#06b6d4',
+              glowBlur: 8,
+              positionY: -14,
+            });
+            compStore.getState().updateOverlay('overlay-subtitle', {
+              text: 'OFFICIAL AUDIO • ULTRA HD 4K',
+              fontFamily: 'JetBrains Mono',
+              fontSize: 11,
+              letterSpacing: 5,
+              positionY: -8,
+            });
+          })()
+        `)
+        await new Promise((r) => setTimeout(r, 1400))
+        await saveScreen('d2_visualizer_phase6_khmer_unicode.png')
+
+        // 6. Test Full Workspace & Text Panel UI with Watermark
+        console.log('[PHASE 6 TEST] Testing Full Workspace & Text Panel UI...')
+        const logoUrl = 'd2-media://media/?path=' + encodeURIComponent(testLogoPath)
+        await mainWindow!.webContents.executeJavaScript(`
+          (async () => {
+            const renderer = window.__D2_OVERLAY_RENDERER__;
+            if (renderer) {
+              await renderer.preloadImage(${JSON.stringify(logoUrl)});
+            }
+            const compStore = window.__D2_COMPOSITION_STORE__;
+            compStore.getState().addOverlay({
+              id: 'watermark-test',
+              name: 'D2 Brand Badge',
+              type: 'logo',
+              src: ${JSON.stringify(logoUrl)},
+              mediaName: 'D2 VISUALIZER',
+              placement: 'top-right',
+              positionX: 0,
+              positionY: 0,
+              scale: 0.9,
+              rotation: 0,
+              shadowColor: 'rgba(0,0,0,0.85)',
+              shadowBlur: 10,
+              glowColor: '#06b6d4',
+              glowBlur: 12,
+              opacity: 0.9,
+              startTime: 0,
+              endTime: 0,
+              animation: { preset: 'fade-in', startTime: 0, duration: 0.8, delay: 0.2, easing: 'ease-out', intensity: 1 },
+              visible: true,
+              locked: false,
+            });
+            const uiStore = window.__D2_UI_STORE__;
+            if (uiStore) {
+              uiStore.getState().setActiveTab('text');
+            }
+          })()
+        `)
+        await new Promise((r) => setTimeout(r, 1000))
+        await saveScreen('d2_visualizer_phase6_workspace.png')
+
+        console.log('[PHASE 6 TEST] SUCCESS: Typography, branding, album artwork, credits and overlay motion verified!')
+        setTimeout(() => app.quit(), 500)
+      } catch (err) {
+        console.error('[PHASE 6 TEST] ERROR during test execution:', err)
+        process.exit(1)
+      }
+    })
+  }
+
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {

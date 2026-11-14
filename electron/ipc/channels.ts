@@ -13,6 +13,7 @@ export const IPC_CHANNELS = {
   // Dialogs
   DIALOG_OPEN_AUDIO: 'd2:dialog:openAudio',
   DIALOG_OPEN_BACKGROUND: 'd2:dialog:openBackground',
+  DIALOG_OPEN_IMAGE: 'd2:dialog:openImage',
 
   // Media File Handling
   MEDIA_READ_BUFFER: 'd2:media:readBuffer',

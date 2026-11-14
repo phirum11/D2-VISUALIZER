@@ -9,6 +9,7 @@ import { useUIStore } from './stores/uiStore'
 import { VisualizerRegistry } from './engine/visualizers/VisualizerRegistry'
 import { BackgroundManager } from './engine/background/BackgroundManager'
 import { LayerCompositor } from './engine/layers/LayerCompositor'
+import { OverlayRenderer } from './engine/overlay/OverlayRenderer'
 
 if (typeof window !== 'undefined') {
   ;(window as unknown as { __D2_AUDIO_STORE__: unknown }).__D2_AUDIO_STORE__ = useAudioStore
@@ -18,6 +19,7 @@ if (typeof window !== 'undefined') {
   ;(window as unknown as { __D2_REGISTRY__: unknown }).__D2_REGISTRY__ = VisualizerRegistry.getInstance()
   ;(window as unknown as { __D2_BG_MANAGER__: unknown }).__D2_BG_MANAGER__ = BackgroundManager.getInstance()
   ;(window as unknown as { __D2_COMPOSITOR__: unknown }).__D2_COMPOSITOR__ = LayerCompositor.getInstance()
+  ;(window as unknown as { __D2_OVERLAY_RENDERER__: unknown }).__D2_OVERLAY_RENDERER__ = OverlayRenderer.getInstance()
 }
 
 const rootElement = document.getElementById('root')

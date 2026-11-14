@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useUIStore, LayerId } from '@/stores/uiStore'
 import { useCompositionStore, BackgroundSizing } from '@/stores/compositionStore'
+import { TextOverlay } from '@/engine/overlay/types'
 import { Slider } from '@/components/ui/Slider'
 import { ColorPicker } from '@/components/ui/ColorPicker'
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
@@ -35,6 +36,9 @@ export const InspectorPanel: React.FC = () => {
     updateBackground,
     text,
     updateText,
+    overlays,
+    activeOverlayId,
+    updateOverlay,
     effects,
     updateEffects,
     ambientParticles,
@@ -391,32 +395,96 @@ export const InspectorPanel: React.FC = () => {
         {/* ========================================================
             TARGET 3: TEXT LAYER
         ======================================================== */}
-        {selectedLayer === 'text' && (
-          <CollapsibleSection title="Typography Bounds">
-            <Slider
-              label="Vertical Offset"
-              value={text.positionY}
-              min={-50}
-              max={50}
-              step={1}
-              unit="%"
-              defaultValue={-20}
-              onChange={(v) => updateText({ positionY: v })}
-              onReset={() => updateText({ positionY: -20 })}
-            />
-            <Slider
-              label="Text Opacity"
-              value={Math.round(text.opacity * 100)}
-              min={10}
-              max={100}
-              step={5}
-              unit="%"
-              defaultValue={100}
-              onChange={(v) => updateText({ opacity: v / 100 })}
-              onReset={() => updateText({ opacity: 1 })}
-            />
-          </CollapsibleSection>
-        )}
+        {selectedLayer === 'text' && (() => {
+          const activeTextOverlay = overlays.find((o) => o.id === activeOverlayId && o.type === 'text') as TextOverlay | undefined
+          return (
+            <CollapsibleSection title="Typography Bounds & Transform">
+              <div className="space-y-3">
+                <Slider
+                  label="Horizontal Offset"
+                  value={activeTextOverlay ? activeTextOverlay.positionX : text.positionX}
+                  min={-50}
+                  max={50}
+                  step={1}
+                  unit="%"
+                  defaultValue={0}
+                  onChange={(v) => {
+                    if (activeTextOverlay) updateOverlay(activeTextOverlay.id, { positionX: v })
+                    updateText({ positionX: v })
+                  }}
+                  onReset={() => {
+                    if (activeTextOverlay) updateOverlay(activeTextOverlay.id, { positionX: 0 })
+                    updateText({ positionX: 0 })
+                  }}
+                />
+                <Slider
+                  label="Vertical Offset"
+                  value={activeTextOverlay ? activeTextOverlay.positionY : text.positionY}
+                  min={-50}
+                  max={50}
+                  step={1}
+                  unit="%"
+                  defaultValue={-20}
+                  onChange={(v) => {
+                    if (activeTextOverlay) updateOverlay(activeTextOverlay.id, { positionY: v })
+                    updateText({ positionY: v })
+                  }}
+                  onReset={() => {
+                    if (activeTextOverlay) updateOverlay(activeTextOverlay.id, { positionY: -20 })
+                    updateText({ positionY: -20 })
+                  }}
+                />
+                <Slider
+                  label="Text Scale"
+                  value={Math.round((activeTextOverlay ? activeTextOverlay.scale : 1) * 100)}
+                  min={30}
+                  max={200}
+                  step={5}
+                  unit="%"
+                  defaultValue={100}
+                  onChange={(v) => {
+                    if (activeTextOverlay) updateOverlay(activeTextOverlay.id, { scale: v / 100 })
+                  }}
+                  onReset={() => {
+                    if (activeTextOverlay) updateOverlay(activeTextOverlay.id, { scale: 1 })
+                  }}
+                />
+                <Slider
+                  label="Letter Spacing"
+                  value={activeTextOverlay ? activeTextOverlay.letterSpacing : 4}
+                  min={-2}
+                  max={20}
+                  step={1}
+                  unit="px"
+                  defaultValue={4}
+                  onChange={(v) => {
+                    if (activeTextOverlay) updateOverlay(activeTextOverlay.id, { letterSpacing: v })
+                  }}
+                  onReset={() => {
+                    if (activeTextOverlay) updateOverlay(activeTextOverlay.id, { letterSpacing: 4 })
+                  }}
+                />
+                <Slider
+                  label="Text Opacity"
+                  value={Math.round((activeTextOverlay ? activeTextOverlay.opacity : text.opacity) * 100)}
+                  min={10}
+                  max={100}
+                  step={5}
+                  unit="%"
+                  defaultValue={100}
+                  onChange={(v) => {
+                    if (activeTextOverlay) updateOverlay(activeTextOverlay.id, { opacity: v / 100 })
+                    updateText({ opacity: v / 100 })
+                  }}
+                  onReset={() => {
+                    if (activeTextOverlay) updateOverlay(activeTextOverlay.id, { opacity: 1 })
+                    updateText({ opacity: 1 })
+                  }}
+                />
+              </div>
+            </CollapsibleSection>
+          )
+        })()}
 
         {/* ========================================================
             TARGET 4: OVERLAYS & CINEMATIC EFFECTS

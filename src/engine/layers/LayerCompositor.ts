@@ -5,6 +5,7 @@ import { AmbientParticleSystem } from '@/engine/effects/AmbientParticles'
 import { CinematicEffects } from '@/engine/effects/CinematicEffects'
 import { VisualizerRegistry } from '@/engine/visualizers/VisualizerRegistry'
 import { VisualizerRenderContext } from '@/engine/visualizers/types'
+import { OverlayRenderer } from '@/engine/overlay/OverlayRenderer'
 
 export interface CompositeRenderContext {
   canvas: HTMLCanvasElement
@@ -27,6 +28,7 @@ export class LayerCompositor {
   private ambientParticles = new AmbientParticleSystem()
   private cinematicEffects = CinematicEffects.getInstance()
   private visualizerRegistry = VisualizerRegistry.getInstance()
+  private overlayRenderer = OverlayRenderer.getInstance()
 
   private constructor() {}
 
@@ -52,7 +54,7 @@ export class LayerCompositor {
       audioTime,
     } = context
 
-    const { background, visualizer, text, effects, ambientParticles, cinematicMotion, layers } = state
+    const { background, visualizer, effects, ambientParticles, cinematicMotion, layers } = state
 
     // 1. Synchronize Background Video Playback with audio time
     if (background.type === 'video') {
@@ -134,60 +136,31 @@ export class LayerCompositor {
     }
 
     // ========================================================
-    // LAYER 7: TYPOGRAPHY (SONG TITLE, ARTIST, SUBTITLE)
+    // LAYER 6, 7 & 8: OVERLAYS (TYPOGRAPHY, ALBUM ARTWORK, LOGO & CREDITS)
     // ========================================================
     const typoLayer = layerMap.get('typography')
-    if (typoLayer?.visible ?? true) {
-      ctx.save()
-      ctx.globalAlpha = (typoLayer?.opacity ?? 1) * text.opacity
-      ctx.textAlign = text.alignment
-      ctx.textBaseline = 'middle'
-
-      const textX =
-        text.alignment === 'center'
-          ? w / 2 + (text.positionX / 100) * w
-          : text.alignment === 'left'
-          ? w * 0.1 + (text.positionX / 100) * w
-          : w * 0.9 + (text.positionX / 100) * w
-
-      const textY = h / 2 + (text.positionY / 100) * h
-
-      // Song Title
-      ctx.font = `bold ${text.fontSize}px ${text.fontFamily}, sans-serif`
-      if (text.outlineWidth > 0 && text.outlineColor) {
-        ctx.strokeStyle = text.outlineColor
-        ctx.lineWidth = text.outlineWidth * 2
-        ctx.strokeText(text.songTitle, textX, textY - 24)
-      }
-      ctx.fillStyle = text.color
-      ctx.shadowColor = 'rgba(0,0,0,0.85)'
-      ctx.shadowBlur = 12
-      ctx.fillText(text.songTitle, textX, textY - 24)
-
-      // Artist Name
-      ctx.font = `500 ${Math.round(text.fontSize * 0.65)}px ${text.fontFamily}, sans-serif`
-      ctx.fillStyle = 'rgba(255,255,255,0.75)'
-      ctx.fillText(text.artistName, textX, textY + 20)
-
-      // Subtitle
-      if (text.subtitle) {
-        ctx.font = `400 ${Math.round(text.fontSize * 0.45)}px ${text.fontFamily}, sans-serif`
-        ctx.fillStyle = 'rgba(99, 102, 241, 0.9)'
-        ctx.fillText(text.subtitle.toUpperCase(), textX, textY + 54)
-      }
-      ctx.restore()
-    }
-
-    // ========================================================
-    // LAYER 8: WATERMARK / BRANDING BADGE
-    // ========================================================
+    const artworkLayer = layerMap.get('artwork')
     const watermarkLayer = layerMap.get('watermark')
-    if (watermarkLayer?.visible ?? true) {
+
+    const overlaysToRender = (state.overlays || []).filter((item) => {
+      if (!item.visible) return false
+      if (item.type === 'text' && typoLayer && !typoLayer.visible) return false
+      if (item.type === 'artwork' && artworkLayer && !artworkLayer.visible) return false
+      if (item.type === 'logo' && watermarkLayer && !watermarkLayer.visible) return false
+      if (item.type === 'credits' && typoLayer && !typoLayer.visible) return false
+      return true
+    })
+
+    if (overlaysToRender.length > 0) {
       ctx.save()
-      ctx.globalAlpha = (watermarkLayer?.opacity ?? 1) * 0.75
-      ctx.font = '600 13px Inter, sans-serif'
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
-      ctx.fillText('D2 VISUALIZER', w - 120, h - 25)
+      this.overlayRenderer.renderOverlays(
+        ctx,
+        w,
+        h,
+        overlaysToRender,
+        timestamp,
+        audioFrame
+      )
       ctx.restore()
     }
 
@@ -245,5 +218,6 @@ export class LayerCompositor {
   public dispose(): void {
     this.bgManager.dispose()
     this.visualizerRegistry.disposeAll()
+    this.overlayRenderer.clearCache()
   }
 }

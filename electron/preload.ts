@@ -38,6 +38,13 @@ const electronAPI = {
     mediaType?: 'image' | 'video'
   }> => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_BACKGROUND),
 
+  openImageFileDialog: (): Promise<{
+    canceled: boolean
+    filePath?: string
+    fileName?: string
+    fileSize?: number
+  }> => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_IMAGE),
+
   readAudioBuffer: (filePath: string): Promise<Uint8Array> =>
     ipcRenderer.invoke(IPC_CHANNELS.MEDIA_READ_BUFFER, filePath),
 

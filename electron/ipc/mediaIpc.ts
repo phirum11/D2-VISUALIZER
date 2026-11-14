@@ -101,6 +101,47 @@ export function registerMediaIpcHandlers(mainWindow: BrowserWindow): void {
     }
   })
 
+  // Open Native Image / Watermark / Artwork Picker
+  ipcMain.handle(IPC_CHANNELS.DIALOG_OPEN_IMAGE, async () => {
+    if (mainWindow.isDestroyed()) return { canceled: true }
+
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Import Artwork or Logo — D2 VISUALIZER',
+      buttonLabel: 'Import Image',
+      properties: ['openFile'],
+      filters: [
+        {
+          name: 'Image Files (PNG, JPG, WebP, SVG)',
+          extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg'],
+        },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    })
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { canceled: true }
+    }
+
+    const filePath = result.filePaths[0]
+    const fileName = path.basename(filePath)
+    try {
+      const stats = fs.statSync(filePath)
+      return {
+        canceled: false,
+        filePath,
+        fileName,
+        fileSize: stats.size,
+      }
+    } catch {
+      return {
+        canceled: false,
+        filePath,
+        fileName,
+        fileSize: 0,
+      }
+    }
+  })
+
   // Read Audio File as binary Buffer (for AudioContext.decodeAudioData)
   ipcMain.handle(
     IPC_CHANNELS.MEDIA_READ_BUFFER,
