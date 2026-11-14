@@ -12,6 +12,11 @@ export default defineConfig({
     electron([
       {
         entry: 'electron/main.ts',
+        onstart(options) {
+          const env = { ...process.env }
+          delete env.ELECTRON_RUN_AS_NODE
+          options.startup(['.', '--no-sandbox'], { env })
+        },
       },
       {
         entry: 'electron/preload.ts',
