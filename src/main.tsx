@@ -12,6 +12,8 @@ import { LayerCompositor } from './engine/layers/LayerCompositor'
 import { OverlayRenderer } from './engine/overlay/OverlayRenderer'
 import { useTimelineStore } from './stores/timelineStore'
 import { TimelineEngine } from './engine/timeline/TimelineEngine'
+import { useExportStore } from './stores/exportStore'
+import { OfflineRenderEngine } from './engine/render/OfflineRenderEngine'
 
 if (typeof window !== 'undefined') {
   ;(window as unknown as { __D2_AUDIO_STORE__: unknown }).__D2_AUDIO_STORE__ = useAudioStore
@@ -24,6 +26,8 @@ if (typeof window !== 'undefined') {
   ;(window as unknown as { __D2_BG_MANAGER__: unknown }).__D2_BG_MANAGER__ = BackgroundManager.getInstance()
   ;(window as unknown as { __D2_COMPOSITOR__: unknown }).__D2_COMPOSITOR__ = LayerCompositor.getInstance()
   ;(window as unknown as { __D2_OVERLAY_RENDERER__: unknown }).__D2_OVERLAY_RENDERER__ = OverlayRenderer.getInstance()
+  ;(window as unknown as { __D2_EXPORT_STORE__: unknown }).__D2_EXPORT_STORE__ = useExportStore
+  ;(window as unknown as { __D2_RENDER_ENGINE__: unknown }).__D2_RENDER_ENGINE__ = OfflineRenderEngine.getInstance()
 }
 
 const rootElement = document.getElementById('root')

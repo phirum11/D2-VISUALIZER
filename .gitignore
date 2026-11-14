@@ -18,6 +18,10 @@ out/
 build/
 .vite/
 
+# Exports and Renders
+exports/
+*.mp4
+
 # Operating System files
 .DS_Store
 Thumbs.db

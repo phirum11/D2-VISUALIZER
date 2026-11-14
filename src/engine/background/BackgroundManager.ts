@@ -158,6 +158,35 @@ export class BackgroundManager {
   }
 
   /**
+   * Deterministic frame-accurate video seek for offline rendering
+   */
+  public async seekVideoExact(config: BackgroundConfig, audioTime: number): Promise<void> {
+    const video = this.videoElement
+    if (!video || !this.isVideoLoaded || config.type !== 'video' || !video.duration) return
+
+    const trimStart = config.trimStart || 0
+    const trimEnd = config.trimEnd > trimStart ? config.trimEnd : video.duration
+    const durationRange = Math.max(0.1, trimEnd - trimStart)
+    const targetVideoTime = trimStart + (audioTime % durationRange)
+
+    if (Math.abs(video.currentTime - targetVideoTime) < 0.02) return
+
+    await new Promise<void>((resolve) => {
+      let resolved = false
+      const onSeeked = () => {
+        if (!resolved) {
+          resolved = true
+          video.removeEventListener('seeked', onSeeked)
+          resolve()
+        }
+      }
+      video.addEventListener('seeked', onSeeked)
+      video.currentTime = targetVideoTime
+      setTimeout(onSeeked, 80)
+    })
+  }
+
+  /**
    * Renders the configured background to the given canvas context
    */
   public render(

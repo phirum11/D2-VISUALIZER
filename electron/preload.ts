@@ -65,6 +65,43 @@ const electronAPI = {
   getMediaUrl: (filePath: string): string => {
     return `d2-media://media/?path=${encodeURIComponent(filePath)}`
   },
+
+  // FFmpeg Offline Video Rendering & Export
+  selectOutputFolderDialog: (defaultPath?: string): Promise<{
+    canceled: boolean
+    folderPath?: string
+  }> => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_SELECT_OUTPUT_FOLDER, defaultPath),
+
+  exportGetEncoders: (): Promise<{
+    nvenc: boolean
+    libx264: boolean
+    recommended: string
+  }> => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_GET_ENCODERS),
+
+  exportStart: (options: unknown): Promise<{
+    success: boolean
+    error?: string
+  }> => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_START, options),
+
+  exportWriteFrame: (buffer: Uint8Array): Promise<{
+    success: boolean
+    error?: string
+  }> => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_WRITE_FRAME, buffer),
+
+  exportFinish: (): Promise<{
+    success: boolean
+    outputPath?: string
+    error?: string
+  }> => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_FINISH),
+
+  exportCancel: (): Promise<{
+    success: boolean
+  }> => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_CANCEL),
+
+  exportShowInFolder: (filePath: string): Promise<{
+    success: boolean
+    error?: string
+  }> => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_SHOW_IN_FOLDER, filePath),
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

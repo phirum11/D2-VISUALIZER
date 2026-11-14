@@ -47,6 +47,50 @@ export interface ElectronAPI {
   getFileStats: (filePath: string) => Promise<FileStatsResult>
   getDemoTrack: () => Promise<DemoTrackResult>
   getMediaUrl: (filePath: string) => string
+
+  // FFmpeg Offline Video Rendering & Export
+  selectOutputFolderDialog: (defaultPath?: string) => Promise<{
+    canceled: boolean
+    folderPath?: string
+  }>
+  exportGetEncoders: () => Promise<{
+    nvenc: boolean
+    libx264: boolean
+    recommended: string
+  }>
+  exportStart: (options: {
+    width: number
+    height: number
+    fps: number
+    duration: number
+    startTime: number
+    outputPath: string
+    audioFilePath?: string
+    bitrate: string
+    audioBitrate: string
+    videoCodec: string
+    preset: string
+    crf?: number
+  }) => Promise<{
+    success: boolean
+    error?: string
+  }>
+  exportWriteFrame: (buffer: Uint8Array) => Promise<{
+    success: boolean
+    error?: string
+  }>
+  exportFinish: () => Promise<{
+    success: boolean
+    outputPath?: string
+    error?: string
+  }>
+  exportCancel: () => Promise<{
+    success: boolean
+  }>
+  exportShowInFolder: (filePath: string) => Promise<{
+    success: boolean
+    error?: string
+  }>
 }
 
 declare global {
