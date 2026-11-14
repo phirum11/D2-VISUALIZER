@@ -102,25 +102,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
           }))
 
           // Update timeline audio track
-          const timeline = useTimelineStore.getState()
-          useTimelineStore.setState({
-            tracks: timeline.tracks.map((t) =>
-              t.type === 'audio'
-                ? {
-                    ...t,
-                    clips: [
-                      {
-                        id: `clip-audio-${meta.id}`,
-                        name: meta.name,
-                        startTime: 0,
-                        duration: meta.duration,
-                        color: '#6366f1',
-                      },
-                    ],
-                  }
-                : t
-            ),
-          })
+          useTimelineStore.getState().syncTracksWithDuration(meta.duration, meta.name)
 
           usePreviewStore.getState().setDuration(meta.duration)
           return true
@@ -145,26 +127,7 @@ export const useAudioStore = create<AudioState>((set, get) => {
             importedFiles: [meta, ...s.importedFiles.filter((f) => f.id !== meta.id)],
           }))
 
-          const timeline = useTimelineStore.getState()
-          useTimelineStore.setState({
-            tracks: timeline.tracks.map((t) =>
-              t.type === 'audio'
-                ? {
-                    ...t,
-                    clips: [
-                      {
-                        id: `clip-audio-${meta.id}`,
-                        name: meta.name,
-                        startTime: 0,
-                        duration: meta.duration,
-                        color: '#6366f1',
-                      },
-                    ],
-                  }
-                : t
-            ),
-          })
-
+          useTimelineStore.getState().syncTracksWithDuration(meta.duration, meta.name)
           usePreviewStore.getState().setDuration(meta.duration)
           return true
         }

@@ -1,8 +1,5 @@
-import React, { useRef } from 'react'
+import React, { useRef, useEffect } from 'react'
 import {
-  ZoomIn,
-  ZoomOut,
-  Magnet,
   Layers,
   ChevronDown,
   ChevronUp,
@@ -13,16 +10,105 @@ import { usePreviewStore } from '@/stores/previewStore'
 import { TimeRuler } from './TimeRuler'
 import { Playhead } from './Playhead'
 import { TrackHeader, TrackLane } from './TrackRow'
+import { TimelineToolbar } from './TimelineToolbar'
+import { TimelineRenderer } from '@/engine/timeline/TimelineRenderer'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 export const TimelinePanel: React.FC = () => {
-  const { zoom, setZoom, tracks } = useTimelineStore()
-  const { isTimelineCollapsed, toggleTimeline, timelineHeight } = useUIStore()
+  const { zoom, tracks, setScrollLeft } = useTimelineStore()
+  const { isTimelineCollapsed, toggleTimeline, timelineHeight, setTimelineHeight } = useUIStore()
   const { duration } = usePreviewStore()
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const headerContainerRef = useRef<HTMLDivElement>(null)
+  const isResizingHeightRef = useRef(false)
 
-  const totalWidth = Math.max(1200, duration * zoom + 200)
+  const totalWidth = TimelineRenderer.calculateTotalWidth(duration, zoom)
+
+  // Keyboard shortcuts listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
+      if (e.key === 'v' || e.key === 'V') {
+        useTimelineStore.getState().setActiveTool('select')
+      } else if (e.key === 'c' || e.key === 'C') {
+        useTimelineStore.getState().setActiveTool('blade')
+      } else if (e.key === 'n' || e.key === 'N') {
+        useTimelineStore.getState().toggleSnap()
+      } else if (e.key === 'm' || e.key === 'M') {
+        const cur = usePreviewStore.getState().currentTime
+        useTimelineStore.getState().addMarker(cur)
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        const sel = useTimelineStore.getState().selectedClipId
+        if (sel) useTimelineStore.getState().deleteClip(sel)
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault()
+        const sel = useTimelineStore.getState().selectedClipId
+        if (sel) useTimelineStore.getState().duplicateClip(sel)
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        const cur = usePreviewStore.getState().currentTime
+        useTimelineStore.getState().splitAtPlayhead(cur)
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault()
+        if (e.shiftKey) {
+          useTimelineStore.getState().redo()
+        } else {
+          useTimelineStore.getState().undo()
+        }
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault()
+        useTimelineStore.getState().redo()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Sync horizontal scroll state with store
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      setScrollLeft(scrollContainerRef.current.scrollLeft)
+      // Sync vertical scroll with track headers
+      if (headerContainerRef.current) {
+        headerContainerRef.current.scrollTop = scrollContainerRef.current.scrollTop
+      }
+    }
+  }
+
+  // Handle timeline panel vertical resizing
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isResizingHeightRef.current = true
+    const startY = e.clientY
+    const startHeight = timelineHeight
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (!isResizingHeightRef.current) return
+      const deltaY = startY - ev.clientY
+      const newH = Math.max(160, Math.min(500, startHeight + deltaY))
+      setTimelineHeight(newH)
+    }
+
+    const handleMouseUp = () => {
+      isResizingHeightRef.current = false
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
 
   if (isTimelineCollapsed) {
     return (
@@ -30,7 +116,7 @@ export const TimelinePanel: React.FC = () => {
         <div className="flex items-center gap-2">
           <Layers className="w-3.5 h-3.5 text-d2-accent" />
           <span className="text-2xs font-semibold uppercase tracking-wider text-d2-textSubtle">
-            Sequence Timeline ({tracks.length} Tracks)
+            Sequence Timeline ({tracks.length} Multi-Tracks)
           </span>
         </div>
         <button
@@ -47,61 +133,20 @@ export const TimelinePanel: React.FC = () => {
   return (
     <div
       style={{ height: `${timelineHeight}px` }}
-      className="w-full bg-d2-surface border-t border-d2-border flex flex-col select-none z-20 shrink-0 overflow-hidden"
+      className="w-full bg-d2-surface border-t border-d2-border flex flex-col select-none z-20 shrink-0 overflow-hidden relative"
     >
-      {/* Timeline Toolbar Header */}
-      <div className="h-8 w-full bg-d2-surfaceElevated/50 border-b border-d2-border px-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-d2-accent" />
-            <span className="text-2xs font-bold uppercase tracking-wider text-white">
-              Sequence Timeline
-            </span>
-            <span className="text-3xs px-1.5 py-0.2 rounded bg-d2-surface border border-d2-border text-d2-textSubtle font-mono">
-              {tracks.length} Tracks
-            </span>
-          </div>
+      {/* Top Resize Handle */}
+      <div
+        onMouseDown={handleResizeMouseDown}
+        className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-d2-accent/60 z-40 transition-colors"
+      />
 
-          <Tooltip content="Snap to Clips & Playhead" side="top">
-            <button className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-d2-surface border border-d2-border text-3xs text-cyan-400 font-medium">
-              <Magnet className="w-2.5 h-2.5" />
-              <span>Snap: ON</span>
-            </button>
-          </Tooltip>
+      {/* Timeline Professional Toolbar */}
+      <div className="flex items-center justify-between border-b border-d2-border bg-d2-surfaceElevated/40">
+        <div className="flex-1">
+          <TimelineToolbar />
         </div>
-
-        {/* Center / Right: Zoom & Collapse controls */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-d2-surface border border-d2-border rounded px-2 py-0.5">
-            <Tooltip content="Zoom Out" side="top">
-              <button
-                onClick={() => setZoom(zoom - 2)}
-                className="text-d2-textSubtle hover:text-white"
-              >
-                <ZoomOut className="w-3 h-3" />
-              </button>
-            </Tooltip>
-
-            <input
-              type="range"
-              min={2}
-              max={30}
-              step={1}
-              value={zoom}
-              onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="w-16 h-1 bg-d2-surfaceElevated rounded appearance-none cursor-pointer accent-d2-accent"
-            />
-
-            <Tooltip content="Zoom In" side="top">
-              <button
-                onClick={() => setZoom(zoom + 2)}
-                className="text-d2-textSubtle hover:text-white"
-              >
-                <ZoomIn className="w-3 h-3" />
-              </button>
-            </Tooltip>
-          </div>
-
+        <div className="px-2">
           <Tooltip content="Collapse Timeline" side="top">
             <button
               onClick={toggleTimeline}
@@ -116,11 +161,16 @@ export const TimelinePanel: React.FC = () => {
       {/* Main Track Grid & Ruler */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Fixed Column: Channels / Headers */}
-        <div className="w-56 h-full bg-d2-surface border-r border-d2-border flex flex-col shrink-0 z-10 shadow-md">
-          <div className="h-6 bg-d2-surfaceElevated/70 border-b border-d2-border px-3 flex items-center text-3xs font-semibold uppercase tracking-wider text-d2-textSubtle shrink-0">
-            Channels
+        <div className="w-60 h-full bg-d2-surface border-r border-d2-border flex flex-col shrink-0 z-20 shadow-md">
+          <div className="h-8 bg-d2-surfaceElevated/70 border-b border-d2-border px-2.5 flex items-center justify-between text-3xs font-semibold uppercase tracking-wider text-d2-textSubtle shrink-0 whitespace-nowrap overflow-hidden">
+            <span>Tracks ({tracks.length})</span>
+            <span className="text-3xs font-mono text-cyan-400">Lock / Solo</span>
           </div>
-          <div className="flex-1 overflow-hidden">
+
+          <div
+            ref={headerContainerRef}
+            className="flex-1 overflow-hidden"
+          >
             {tracks.map((track) => (
               <TrackHeader key={track.id} track={track} />
             ))}
@@ -129,11 +179,13 @@ export const TimelinePanel: React.FC = () => {
 
         {/* Right Scrollable Column: Ruler & Clip Lanes */}
         <div
+          id="d2-timeline-scroll-container"
           ref={scrollContainerRef}
-          className="flex-1 h-full overflow-x-auto overflow-y-hidden relative bg-d2-canvas/60"
+          onScroll={handleScroll}
+          className="flex-1 h-full overflow-x-auto overflow-y-auto relative bg-d2-canvas/60"
         >
-          <div style={{ width: `${totalWidth}px` }} className="relative h-full">
-            {/* Top Seconds Time Ruler */}
+          <div style={{ width: `${totalWidth}px` }} className="relative min-h-full">
+            {/* Top Seconds & Frame Time Ruler */}
             <TimeRuler />
 
             {/* Playhead Vertical Guide Needle */}

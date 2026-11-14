@@ -1,4 +1,4 @@
-import { OverlayElement, TextOverlay, CreditsOverlay } from './types'
+import { OverlayElement, CreditsOverlay } from './types'
 
 export interface TypographyPresetDefinition {
   id: string
@@ -14,7 +14,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
     name: 'Minimal Luxury',
     category: 'Minimal',
     description: 'Understated high-fashion typography with refined tracking and warm champagne glow',
-    generateOverlays: (title, artist, subtitle) => [
+    generateOverlays: (title, artist, _subtitle) => [
       {
         id: 'title-' + Date.now(),
         name: 'Song Title',
@@ -96,7 +96,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
         name: 'Subtitle',
         type: 'text',
         role: 'subtitle',
-        text: (subtitle || 'OFFICIAL VISUALIZER').toUpperCase(),
+        text: (_subtitle || 'OFFICIAL VISUALIZER').toUpperCase(),
         fontFamily: 'Inter',
         fontSize: 11,
         fontWeight: '600',
@@ -136,7 +136,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
     name: 'Cinematic Widescreen',
     category: 'Cinematic',
     description: 'Blockbuster cinematic title reveal with dramatic wide letter spacing and drop shadow',
-    generateOverlays: (title, artist, subtitle) => [
+    generateOverlays: (title, artist, _subtitle) => [
       {
         id: 'title-' + Date.now(),
         name: 'Song Title',
@@ -220,7 +220,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
     name: 'Modern Electronic',
     category: 'Electronic',
     description: 'Electric cyan and violet typography with outer neon glow and dynamic box',
-    generateOverlays: (title, artist, subtitle) => [
+    generateOverlays: (title, artist, _subtitle) => [
       {
         id: 'title-' + Date.now(),
         name: 'Song Title',
@@ -304,7 +304,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
     name: 'Neon Cyberpunk',
     category: 'Electronic',
     description: 'High-voltage magenta and cyan glitch typography with neon outer glow',
-    generateOverlays: (title, artist, subtitle) => [
+    generateOverlays: (title, artist, _subtitle) => [
       {
         id: 'title-' + Date.now(),
         name: 'Song Title',
@@ -388,7 +388,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
     name: 'Music Credits Block',
     category: 'Specialty',
     description: 'Official release audio credits card with producer, arranger, mixing, mastering, and label',
-    generateOverlays: (title, artist) => [
+    generateOverlays: (_title, artist) => [
       {
         id: 'credits-' + Date.now(),
         name: 'Official Music Credits',
@@ -429,7 +429,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
     name: 'Afro House / Organic',
     category: 'Modern',
     description: 'Warm terracotta and golden amber tones with rhythmic tracking and earthy character',
-    generateOverlays: (title, artist, subtitle) => [
+    generateOverlays: (title, artist, _subtitle) => [
       {
         id: 'title-' + Date.now(),
         name: 'Song Title',
@@ -513,7 +513,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
     name: 'Deep House Sunset',
     category: 'Electronic',
     description: 'Sleek minimal typography with deep magenta and violet atmospheric glow',
-    generateOverlays: (title, artist, subtitle) => [
+    generateOverlays: (title, artist, _subtitle) => [
       {
         id: 'title-' + Date.now(),
         name: 'Song Title',
@@ -597,7 +597,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
     name: 'Dark Minimal',
     category: 'Minimal',
     description: 'Ultra-clean high-contrast monochrome design with subtle subtitle accent',
-    generateOverlays: (title, artist, subtitle) => [
+    generateOverlays: (title, artist, _subtitle) => [
       {
         id: 'title-' + Date.now(),
         name: 'Song Title',
@@ -681,7 +681,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
     name: 'Elegant Typography',
     category: 'Cinematic',
     description: 'Graceful serif titles with cursive subtitle for acoustic, jazz, and ambient releases',
-    generateOverlays: (title, artist, subtitle) => [
+    generateOverlays: (title, artist, _subtitle) => [
       {
         id: 'title-' + Date.now(),
         name: 'Song Title',
@@ -765,7 +765,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPresetDefinition[] = [
     name: 'Artist Branding Lockup',
     category: 'Specialty',
     description: 'Clean branding lockup with official watermark badge and subtitle',
-    generateOverlays: (title, artist, subtitle) => [
+    generateOverlays: (title, artist, _subtitle) => [
       {
         id: 'title-' + Date.now(),
         name: 'Song Title',

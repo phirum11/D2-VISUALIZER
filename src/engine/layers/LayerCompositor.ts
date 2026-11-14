@@ -6,6 +6,8 @@ import { CinematicEffects } from '@/engine/effects/CinematicEffects'
 import { VisualizerRegistry } from '@/engine/visualizers/VisualizerRegistry'
 import { VisualizerRenderContext } from '@/engine/visualizers/types'
 import { OverlayRenderer } from '@/engine/overlay/OverlayRenderer'
+import { useTimelineStore } from '@/stores/timelineStore'
+import { TimelineEngine } from '@/engine/timeline/TimelineEngine'
 
 export interface CompositeRenderContext {
   canvas: HTMLCanvasElement
@@ -78,6 +80,58 @@ export class LayerCompositor {
     // Helper map of layers by type
     const layerMap = new Map(layers.map((l) => [l.type, l]))
 
+    // Multi-track timeline active clip and keyframe evaluation
+    const timelineTracks = useTimelineStore.getState().tracks
+    const activeClipsMap = TimelineEngine.getInstance().evaluateActiveClips(
+      timelineTracks,
+      audioTime
+    )
+
+    const hasBgTrack = timelineTracks.some((t) => t.type === 'background')
+    const bgClip = activeClipsMap.get('background')
+    const isBgActive = !hasBgTrack || !!bgClip
+
+    const hasPartTrack = timelineTracks.some((t) => t.type === 'particles')
+    const partClip = activeClipsMap.get('particles')
+    const isPartActive = !hasPartTrack || !!partClip
+
+    const hasVizTrack = timelineTracks.some((t) => t.type === 'visualizer')
+    const vizClip = activeClipsMap.get('visualizer')
+    const isVizActive = !hasVizTrack || !!vizClip
+
+    const hasFxTrack = timelineTracks.some((t) => t.type === 'effects')
+    const fxClip = activeClipsMap.get('effects')
+    const isFxActive = !hasFxTrack || !!fxClip
+
+    const hasTypoTrack = timelineTracks.some((t) => t.type === 'typography')
+    const typoClip = activeClipsMap.get('typography')
+    const isTypoActive = !hasTypoTrack || !!typoClip
+
+    const hasArtworkTrack = timelineTracks.some((t) => t.type === 'artwork')
+    const artworkClip = activeClipsMap.get('artwork')
+    const isArtworkActive = !hasArtworkTrack || !!artworkClip
+
+    const hasLogoTrack = timelineTracks.some((t) => t.type === 'logo')
+    const logoClip = activeClipsMap.get('logo')
+    const isLogoActive = !hasLogoTrack || !!logoClip
+
+    // Dynamic keyframe evaluations
+    let activeVisualizerConfig = visualizer
+    if (vizClip) {
+      const kfValues = TimelineEngine.getInstance().evaluateClipProperties(vizClip, audioTime)
+      if (Object.keys(kfValues).length > 0) {
+        activeVisualizerConfig = { ...visualizer, ...kfValues }
+      }
+    }
+
+    let activeBgConfig = background
+    if (bgClip) {
+      const kfValues = TimelineEngine.getInstance().evaluateClipProperties(bgClip, audioTime)
+      if (Object.keys(kfValues).length > 0) {
+        activeBgConfig = { ...background, ...kfValues }
+      }
+    }
+
     // ========================================================
     // LAYER 1 & 2: BACKGROUND (BASE GRADIENT/COLOR OR MEDIA)
     // ========================================================
@@ -85,18 +139,18 @@ export class LayerCompositor {
     const mediaBgLayer = layerMap.get('media-background')
 
     const isBgVisible =
-      (background.type === 'color' || background.type === 'gradient')
+      (activeBgConfig.type === 'color' || activeBgConfig.type === 'gradient')
         ? baseBgLayer?.visible ?? true
         : mediaBgLayer?.visible ?? true
 
-    if (isBgVisible) {
+    if (isBgVisible && isBgActive) {
       ctx.save()
       const bgOpacity =
-        (background.type === 'color' || background.type === 'gradient')
+        (activeBgConfig.type === 'color' || activeBgConfig.type === 'gradient')
           ? (baseBgLayer?.opacity ?? 1)
-          : (mediaBgLayer?.opacity ?? 1) * background.opacity
+          : (mediaBgLayer?.opacity ?? 1) * activeBgConfig.opacity
       ctx.globalAlpha = bgOpacity
-      this.bgManager.render(ctx, w, h, background, timestamp)
+      this.bgManager.render(ctx, w, h, activeBgConfig, timestamp)
       ctx.restore()
     }
 
@@ -104,7 +158,7 @@ export class LayerCompositor {
     // LAYER 4: AMBIENT PARTICLES
     // ========================================================
     const particlesLayer = layerMap.get('ambient-particles')
-    if (ambientParticles.enabled && (particlesLayer?.visible ?? true)) {
+    if (ambientParticles.enabled && (particlesLayer?.visible ?? true) && isPartActive) {
       ctx.save()
       ctx.globalAlpha = (particlesLayer?.opacity ?? 1) * ambientParticles.opacity
       this.ambientParticles.render(ctx, w, h, ambientParticles, audioFrame, timestamp)
@@ -115,16 +169,16 @@ export class LayerCompositor {
     // LAYER 5: AUDIO VISUALIZER (MODULAR ENGINE)
     // ========================================================
     const visualizerLayer = layerMap.get('visualizer')
-    if (visualizerLayer?.visible ?? true) {
+    if ((visualizerLayer?.visible ?? true) && isVizActive) {
       ctx.save()
-      ctx.globalAlpha = (visualizerLayer?.opacity ?? 1)
+      ctx.globalAlpha = (visualizerLayer?.opacity ?? 1) * (activeVisualizerConfig.opacity ?? 1)
 
-      const activeVisualizer = this.visualizerRegistry.setActiveVisualizer(visualizer.type)
+      const activeVisualizer = this.visualizerRegistry.setActiveVisualizer(activeVisualizerConfig.type)
       const vizContext: VisualizerRenderContext = {
         canvas,
         ctx2d: ctx,
         audioFrame,
-        config: visualizer,
+        config: activeVisualizerConfig,
         effects,
         time: timestamp,
         width: w,
@@ -144,10 +198,10 @@ export class LayerCompositor {
 
     const overlaysToRender = (state.overlays || []).filter((item) => {
       if (!item.visible) return false
-      if (item.type === 'text' && typoLayer && !typoLayer.visible) return false
-      if (item.type === 'artwork' && artworkLayer && !artworkLayer.visible) return false
-      if (item.type === 'logo' && watermarkLayer && !watermarkLayer.visible) return false
-      if (item.type === 'credits' && typoLayer && !typoLayer.visible) return false
+      if (item.type === 'text' && (!isTypoActive || (typoLayer && !typoLayer.visible))) return false
+      if (item.type === 'artwork' && (!isArtworkActive || (artworkLayer && !artworkLayer.visible))) return false
+      if (item.type === 'logo' && (!isLogoActive || (watermarkLayer && !watermarkLayer.visible))) return false
+      if (item.type === 'credits' && (!isTypoActive || (typoLayer && !typoLayer.visible))) return false
       return true
     })
 
@@ -168,7 +222,7 @@ export class LayerCompositor {
     // LAYER 9: FOREGROUND EFFECTS (VIGNETTE, GRAIN, RGB SPLIT, LEAKS)
     // ========================================================
     const fxLayer = layerMap.get('foreground-effects')
-    if (fxLayer?.visible ?? true) {
+    if ((fxLayer?.visible ?? true) && isFxActive) {
       ctx.save()
       ctx.globalAlpha = fxLayer?.opacity ?? 1
       this.cinematicEffects.applyPostEffects(ctx, w, h, effects, audioFrame, timestamp)
