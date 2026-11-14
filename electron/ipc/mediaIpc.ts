@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, dialog } from 'electron'
+import { BrowserWindow, ipcMain, dialog, app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { IPC_CHANNELS } from './channels'
@@ -180,4 +180,23 @@ export function registerMediaIpcHandlers(mainWindow: BrowserWindow): void {
       }
     }
   )
+
+  // Get Bundled Demo Track info (for 1-click audio testing)
+  ipcMain.handle(IPC_CHANNELS.MEDIA_GET_DEMO_TRACK, async () => {
+    try {
+      const demoPath = path.join(app.getAppPath(), 'resources', 'test_audio_track.wav')
+      if (fs.existsSync(demoPath)) {
+        const stats = await fs.promises.stat(demoPath)
+        return {
+          exists: true,
+          filePath: demoPath,
+          fileName: 'Test Beat Track 128BPM.wav',
+          fileSize: stats.size,
+        }
+      }
+    } catch (err) {
+      console.error('[MEDIA IPC] Failed to find demo track:', err)
+    }
+    return { exists: false }
+  })
 }

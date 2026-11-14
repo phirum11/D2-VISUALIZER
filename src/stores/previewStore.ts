@@ -36,8 +36,8 @@ export const usePreviewStore = create<PreviewState>((set) => ({
   showSafeGuides: false,
   previewQuality: 'balanced',
   isPlaying: false,
-  currentTime: 24.5,
-  duration: 198.0, // 3:18
+  currentTime: 0,
+  duration: 198.0, // Default 3:18 project timeline length
   volume: 0.85,
   isLooping: true,
 

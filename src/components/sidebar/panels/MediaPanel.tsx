@@ -128,20 +128,32 @@ export const MediaPanel: React.FC = () => {
       {/* Track List */}
       <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5">
         {filtered.length === 0 ? (
-          <div className="p-4 rounded-lg bg-d2-surfaceElevated/30 border border-d2-borderSubtle text-center space-y-2">
+          <div className="p-4 rounded-lg bg-d2-surfaceElevated/30 border border-d2-borderSubtle text-center space-y-2.5">
             <Info className="w-5 h-5 text-d2-textSubtle mx-auto" />
-            <p className="text-2xs text-d2-textSubtle">
-              No audio imported yet. Import an MP3, WAV or FLAC file, or click below to test with the built-in signal generator.
+            <p className="text-2xs text-d2-textSubtle leading-relaxed">
+              No audio imported yet. Import an MP3, WAV or FLAC file, load the bundled sample beat track, or test with the real-time signal generator.
             </p>
-            <button
-              onClick={() => {
-                useAudioStore.getState().play()
-              }}
-              className="px-3 py-1 rounded bg-d2-surfaceElevated hover:bg-d2-surfaceActive border border-d2-border text-2xs text-cyan-400 font-medium inline-flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3 h-3" />
-              Play Test Synthesizer Demo
-            </button>
+            <div className="flex flex-col gap-2 pt-1 items-center">
+              <button
+                onClick={() => {
+                  useAudioStore.getState().loadDemoTrack()
+                }}
+                className="w-full py-1.5 px-3 rounded bg-d2-accent hover:bg-d2-accentHover text-white text-2xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              >
+                <Music className="w-3.5 h-3.5" />
+                Load Sample Beat Track (128 BPM)
+              </button>
+
+              <button
+                onClick={() => {
+                  useAudioStore.getState().play()
+                }}
+                className="w-full py-1.5 px-3 rounded bg-d2-surfaceElevated hover:bg-d2-surfaceActive border border-d2-border text-2xs text-cyan-400 font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Play Synthesizer Demo Loop
+              </button>
+            </div>
           </div>
         ) : (
           filtered.map((item) => {

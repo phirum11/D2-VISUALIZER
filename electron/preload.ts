@@ -54,6 +54,13 @@ const electronAPI = {
     extension: string
   }> => ipcRenderer.invoke(IPC_CHANNELS.MEDIA_GET_STATS, filePath),
 
+  getDemoTrack: (): Promise<{
+    exists: boolean
+    filePath?: string
+    fileName?: string
+    fileSize?: number
+  }> => ipcRenderer.invoke(IPC_CHANNELS.MEDIA_GET_DEMO_TRACK),
+
   // Helper to convert safe local path to d2-media URL
   getMediaUrl: (filePath: string): string => {
     return `d2-media://media/?path=${encodeURIComponent(filePath)}`

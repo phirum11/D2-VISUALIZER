@@ -35,6 +35,8 @@ export class AudioEngine {
   // Synthesizer demo source (if playing built-in demo)
   private isDemoMode: boolean = false
   private demoInterval: number | null = null
+  private demoCurrentTime: number = 0
+  private readonly demoDuration: number = 198.0
 
   private constructor() {
     this.audioCtx = AudioDecoder.getContext()
@@ -104,9 +106,11 @@ export class AudioEngine {
     })
 
     this.audioElement.addEventListener('error', (e) => {
+      // Ignore errors when no source is assigned or during demo synthesis mode
+      if (!this.audioElement.src || this.isDemoMode || !this.currentBuffer) return
       const err = this.audioElement.error
       const message = err ? `Audio playback error: code ${err.code}` : 'Failed to load audio'
-      console.error('[AUDIO ENGINE]', message, e)
+      console.warn('[AUDIO ENGINE]', message, e)
       this.setStatus('error')
       this.notifyError(message)
     })
@@ -120,6 +124,8 @@ export class AudioEngine {
     metadata?: Partial<AudioMetadata>,
     rawBuffer?: Uint8Array
   ): Promise<void> {
+    this.stopSynthesizerDemo()
+    this.isDemoMode = false
     this.stop()
     this.setStatus('loading')
 
@@ -209,20 +215,34 @@ export class AudioEngine {
    */
   public async play(): Promise<void> {
     if (this.audioCtx.state === 'suspended') {
-      await this.audioCtx.resume()
+      try {
+        await this.audioCtx.resume()
+      } catch (err) {
+        console.warn('[AUDIO ENGINE] AudioContext resume error:', err)
+      }
     }
 
-    if (this.status === 'idle' && !this.audioElement.src) {
-      // Start built-in synthesizer demo mode if no file is loaded yet
+    // If no real audio buffer has been decoded and loaded, run or resume synthesizer demo
+    if (!this.currentBuffer) {
       this.startSynthesizerDemo()
       return
+    }
+
+    // Stop demo synthesizer if active before playing real audio
+    if (this.isDemoMode) {
+      this.stopSynthesizerDemo()
     }
 
     try {
       await this.audioElement.play()
       this.setStatus('playing')
-    } catch (err) {
-      console.error('[AUDIO ENGINE] Play rejected:', err)
+    } catch (err: unknown) {
+      const domErr = err as { name?: string; message?: string }
+      // AbortError is a standard browser race condition when play is rapidly interrupted by pause
+      if (domErr?.name === 'AbortError') {
+        return
+      }
+      console.warn('[AUDIO ENGINE] Play failed:', domErr?.name || 'Error', domErr?.message || err)
       this.setStatus('paused')
     }
   }
@@ -231,7 +251,9 @@ export class AudioEngine {
     if (this.isDemoMode) {
       this.stopSynthesizerDemo()
     }
-    this.audioElement.pause()
+    if (this.currentBuffer) {
+      this.audioElement.pause()
+    }
     this.setStatus('paused')
   }
 
@@ -239,8 +261,11 @@ export class AudioEngine {
     if (this.isDemoMode) {
       this.stopSynthesizerDemo()
     }
-    this.audioElement.pause()
-    this.audioElement.currentTime = 0
+    this.demoCurrentTime = 0
+    if (this.currentBuffer) {
+      this.audioElement.pause()
+      this.audioElement.currentTime = 0
+    }
     this.extractor.reset()
     this.setStatus('paused')
     this.notifyTimeUpdate()
@@ -248,7 +273,11 @@ export class AudioEngine {
 
   public seek(seconds: number): void {
     const target = Math.max(0, Math.min(this.getDuration(), seconds))
-    this.audioElement.currentTime = target
+    if (this.currentBuffer) {
+      this.audioElement.currentTime = target
+    } else {
+      this.demoCurrentTime = target
+    }
     this.notifyTimeUpdate()
   }
 
@@ -279,12 +308,18 @@ export class AudioEngine {
   }
 
   public getCurrentTime(): number {
-    return this.audioElement.currentTime
+    if (this.currentBuffer) {
+      return this.audioElement.currentTime
+    }
+    return this.demoCurrentTime
   }
 
   public getDuration(): number {
     if (this.currentMetadata?.duration) return this.currentMetadata.duration
-    return isNaN(this.audioElement.duration) ? 0 : this.audioElement.duration
+    if (this.currentBuffer && !isNaN(this.audioElement.duration) && this.audioElement.duration > 0) {
+      return this.audioElement.duration
+    }
+    return this.demoDuration
   }
 
   public getStatus(): AudioEngineStatus {
@@ -326,52 +361,104 @@ export class AudioEngine {
   /**
    * Synthesizer Demo: generates real audio frequencies through the Web Audio API
    * for immediate live testing and visualizer reaction before importing external files.
+   * Seamlessly advances the playhead and syncs with the project timeline.
    */
   public startSynthesizerDemo(): void {
+    if (this.isDemoMode && this.status === 'playing') return
     this.isDemoMode = true
     this.setStatus('playing')
 
-    // Create a 120 BPM drum kick + sub-bass + synth chord loop
-    let step = 0
-    const intervalTime = (60 / 120 / 4) * 1000 // 16th notes at 120 bpm
+    const bpm = 128
+    const intervalTime = (60 / bpm / 4) * 1000 // 16th notes (~117ms)
+    let step = Math.floor(this.demoCurrentTime / (60 / bpm / 4))
+
+    if (this.demoInterval !== null) {
+      clearInterval(this.demoInterval)
+    }
+
+    const stepSeconds = intervalTime / 1000
 
     this.demoInterval = window.setInterval(() => {
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(() => {})
+      }
       const now = this.audioCtx.currentTime
 
-      // 1. Kick drum every 4 sixteenths (quarter notes)
+      // 1. Kick drum every quarter note
       if (step % 4 === 0) {
-        const osc = this.audioCtx.createOscillator()
-        const kickGain = this.audioCtx.createGain()
-        osc.frequency.setValueAtTime(140, now)
-        osc.frequency.exponentialRampToValueAtTime(35, now + 0.15)
-        kickGain.gain.setValueAtTime(1.0, now)
-        kickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.18)
-
-        osc.connect(kickGain)
-        kickGain.connect(this.gainNode)
-        osc.start(now)
-        osc.stop(now + 0.2)
-      }
-
-      // 2. Synth Chord Pad
-      if (step % 8 === 0) {
-        const chordNotes = [220, 277.18, 329.63, 440] // A Minor chord
-        chordNotes.forEach((freq) => {
+        try {
           const osc = this.audioCtx.createOscillator()
-          const padGain = this.audioCtx.createGain()
-          osc.type = 'sawtooth'
-          osc.frequency.setValueAtTime(freq, now)
-          padGain.gain.setValueAtTime(0.08, now)
-          padGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4)
+          const kickGain = this.audioCtx.createGain()
+          osc.frequency.setValueAtTime(145, now)
+          osc.frequency.exponentialRampToValueAtTime(36, now + 0.14)
+          kickGain.gain.setValueAtTime(0.95, now)
+          kickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.17)
 
-          osc.connect(padGain)
-          padGain.connect(this.gainNode)
+          osc.connect(kickGain)
+          kickGain.connect(this.gainNode)
           osc.start(now)
-          osc.stop(now + 0.45)
-        })
+          osc.stop(now + 0.18)
+        } catch {
+          // ignore closed context
+        }
       }
 
+      // 2. Hi-hat on offbeats
+      if (step % 2 === 1) {
+        try {
+          const osc = this.audioCtx.createOscillator()
+          const hatGain = this.audioCtx.createGain()
+          osc.type = 'triangle'
+          osc.frequency.setValueAtTime(7500, now)
+          hatGain.gain.setValueAtTime(0.12, now)
+          hatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+
+          osc.connect(hatGain)
+          hatGain.connect(this.gainNode)
+          osc.start(now)
+          osc.stop(now + 0.05)
+        } catch {
+          // ignore
+        }
+      }
+
+      // 3. Synth Chord Pad
+      if (step % 8 === 0) {
+        try {
+          const chordNotes = [220, 277.18, 329.63, 440] // A Minor
+          chordNotes.forEach((freq) => {
+            const osc = this.audioCtx.createOscillator()
+            const padGain = this.audioCtx.createGain()
+            osc.type = 'sawtooth'
+            osc.frequency.setValueAtTime(freq, now)
+            padGain.gain.setValueAtTime(0.06, now)
+            padGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38)
+
+            osc.connect(padGain)
+            padGain.connect(this.gainNode)
+            osc.start(now)
+            osc.stop(now + 0.42)
+          })
+        } catch {
+          // ignore
+        }
+      }
+
+      // Advance demo clock & notify
+      this.demoCurrentTime += stepSeconds
+      if (this.demoCurrentTime >= this.demoDuration) {
+        if (this.audioElement.loop) {
+          this.demoCurrentTime = 0
+          step = 0
+        } else {
+          this.stopSynthesizerDemo()
+          this.setStatus('paused')
+          this.notifyTimeUpdate()
+          return
+        }
+      }
       step++
+      this.notifyTimeUpdate()
     }, intervalTime)
   }
 
@@ -406,11 +493,12 @@ export class AudioEngine {
 
   public dispose(): void {
     this.stop()
-    this.audioElement.src = ''
+    this.audioElement.removeAttribute('src')
+    this.audioElement.load()
     this.listeners.clear()
     WaveformGenerator.clearCache()
     if (this.audioCtx.state !== 'closed') {
-      this.audioCtx.close()
+      this.audioCtx.close().catch(() => {})
     }
   }
 }

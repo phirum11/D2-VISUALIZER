@@ -19,6 +19,13 @@ export interface FileStatsResult {
   extension: string
 }
 
+export interface DemoTrackResult {
+  exists: boolean
+  filePath?: string
+  fileName?: string
+  fileSize?: number
+}
+
 export interface ElectronAPI {
   // App info & diagnostics
   getVersion: () => Promise<string>
@@ -38,6 +45,7 @@ export interface ElectronAPI {
   openImageFileDialog: () => Promise<OpenAudioResult>
   readAudioBuffer: (filePath: string) => Promise<Uint8Array>
   getFileStats: (filePath: string) => Promise<FileStatsResult>
+  getDemoTrack: () => Promise<DemoTrackResult>
   getMediaUrl: (filePath: string) => string
 }
 

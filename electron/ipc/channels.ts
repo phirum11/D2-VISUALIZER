@@ -18,6 +18,7 @@ export const IPC_CHANNELS = {
   // Media File Handling
   MEDIA_READ_BUFFER: 'd2:media:readBuffer',
   MEDIA_GET_STATS: 'd2:media:getStats',
+  MEDIA_GET_DEMO_TRACK: 'd2:media:getDemoTrack',
 
   // Diagnostics
   PING: 'd2:ping',

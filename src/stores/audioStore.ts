@@ -21,6 +21,7 @@ interface AudioState {
   importAudioViaDialog: () => Promise<boolean>
   importAudioFile: (file: File) => Promise<boolean>
   importFromPath: (filePath: string, name?: string) => Promise<boolean>
+  loadDemoTrack: () => Promise<boolean>
   play: () => Promise<void>
   pause: () => void
   stop: () => void
@@ -133,6 +134,20 @@ export const useAudioStore = create<AudioState>((set, get) => {
         }
       } catch (err) {
         console.error('[AUDIO STORE] Import file error:', err)
+      }
+      return false
+    },
+
+    loadDemoTrack: async () => {
+      try {
+        if (typeof window !== 'undefined' && window.electronAPI?.getDemoTrack) {
+          const res = await window.electronAPI.getDemoTrack()
+          if (res.exists && res.filePath) {
+            return await get().importFromPath(res.filePath, res.fileName || 'Test Beat Track 128BPM.wav')
+          }
+        }
+      } catch (err) {
+        console.error('[AUDIO STORE] Failed to load demo track:', err)
       }
       return false
     },
