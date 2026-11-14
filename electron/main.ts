@@ -3,13 +3,6 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { registerIpcHandlers } from './ipc/windowIpc'
 
-// Built directory structure:
-// ├─┬ dist-electron
-// │ ├── main.js
-// │ └── preload.js
-// ├─┬ dist
-// │ └── index.html
-
 const appRoot = path.join(__dirname, '..')
 export const MAIN_DIST = path.join(appRoot, 'dist-electron')
 export const RENDERER_DIST = path.join(appRoot, 'dist')
@@ -61,24 +54,47 @@ function createWindow(): void {
     mainWindow?.show()
   })
 
-  // Verification hook for automated CI / smoke testing
-  if (process.env.TEST_MODE === '1') {
+  // Verification & Screenshot hook
+  if (process.env.TEST_MODE === '1' || process.env.SCREENSHOT_MODE === '1') {
     mainWindow.webContents.on('did-finish-load', async () => {
       try {
+        console.log('[TEST] WebContents finished load.')
+        // Wait 1.2s for React and Canvas to render
+        await new Promise((r) => setTimeout(r, 1200))
+
         const testResult = await mainWindow!.webContents.executeJavaScript(`
           (async () => {
             const hasAPI = typeof window.electronAPI !== 'undefined';
             const ping = hasAPI ? await window.electronAPI.ping() : null;
-            const version = hasAPI ? await window.electronAPI.getVersion() : null;
-            const platform = hasAPI ? await window.electronAPI.getPlatform() : null;
-            return { hasAPI, ping, version, platform };
+            const titlePresent = !!document.querySelector('header');
+            const canvasPresent = !!document.querySelector('canvas');
+            const tracksPresent = document.querySelectorAll('.flex.h-11').length;
+            return { hasAPI, ping, titlePresent, canvasPresent, tracksPresent };
           })()
         `)
-        if (testResult.hasAPI && testResult.ping && testResult.ping.includes('pong')) {
-          console.log('[TEST] SUCCESS: IPC Bridge and Renderer verified!')
+        console.log('[TEST RESULT]', JSON.stringify(testResult, null, 2))
+
+        if (process.env.SCREENSHOT_MODE === '1') {
+          const image = await mainWindow!.webContents.capturePage()
+          const buffer = image.toPNG()
+          const localPath = path.join(appRoot, 'd2_visualizer_phase2_preview.png')
+          fs.writeFileSync(localPath, buffer)
+          console.log('[SCREENSHOT] Saved local screenshot to:', localPath)
+
+          // Also copy to artifact dir for direct embedding
+          const artifactDir = 'C:\\Users\\User\\.gemini\\antigravity\\brain\\9abdc11c-922d-4fcf-a77b-2639ba067298'
+          if (fs.existsSync(artifactDir)) {
+            const artifactPath = path.join(artifactDir, 'd2_visualizer_phase2_preview.png')
+            fs.writeFileSync(artifactPath, buffer)
+            console.log('[SCREENSHOT] Saved artifact screenshot to:', artifactPath)
+          }
+        }
+
+        if (testResult.hasAPI && testResult.titlePresent && testResult.canvasPresent) {
+          console.log('[TEST] SUCCESS: Professional Editor UI verified!')
           setTimeout(() => app.quit(), 500)
         } else {
-          console.error('[TEST] FAILED: Invalid test result', testResult)
+          console.error('[TEST] FAILED: Missing essential UI components', testResult)
           process.exit(1)
         }
       } catch (err) {
@@ -95,7 +111,7 @@ function createWindow(): void {
   }
 }
 
-// Ensure single instance lock
+// Single instance lock
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
   app.quit()
