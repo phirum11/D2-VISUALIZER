@@ -29,6 +29,27 @@ export const IPC_CHANNELS = {
   EXPORT_GET_ENCODERS: 'd2:export:getEncoders',
   EXPORT_SHOW_IN_FOLDER: 'd2:export:showInFolder',
 
+  // Project Persistence (.d2proj) & Templates
+  PROJECT_SAVE: 'd2:project:save',
+  PROJECT_OPEN_DIALOG: 'd2:project:openDialog',
+  PROJECT_SAVE_DIALOG: 'd2:project:saveDialog',
+  PROJECT_LOAD: 'd2:project:load',
+  PROJECT_AUTOSAVE: 'd2:project:autoSave',
+  PROJECT_GET_RECOVERY: 'd2:project:getRecovery',
+  PROJECT_DISCARD_RECOVERY: 'd2:project:discardRecovery',
+  PROJECT_GET_RECENTS: 'd2:project:getRecents',
+  PROJECT_REMOVE_RECENT: 'd2:project:removeRecent',
+  PROJECT_DELETE_FILE: 'd2:project:deleteFile',
+  PROJECT_BUNDLE_ASSETS: 'd2:project:bundleAssets',
+  PROJECT_REVEAL_IN_EXPLORER: 'd2:project:revealInExplorer',
+
+  // Preset Library
+  PRESETS_GET_USER: 'd2:presets:getUser',
+  PRESETS_SAVE_USER: 'd2:presets:saveUser',
+  PRESETS_DELETE_USER: 'd2:presets:deleteUser',
+  PRESETS_EXPORT_FILE: 'd2:presets:exportFile',
+  PRESETS_IMPORT_FILE: 'd2:presets:importFile',
+
   // Diagnostics
   PING: 'd2:ping',
 } as const

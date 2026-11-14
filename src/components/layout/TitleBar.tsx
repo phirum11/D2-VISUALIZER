@@ -16,12 +16,13 @@ import { useAppStore } from '@/stores/appStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useCompositionStore } from '@/stores/compositionStore'
 import { useAudioStore } from '@/stores/audioStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { ProjectMenu } from './ProjectMenu'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 export const TitleBar: React.FC = () => {
-  const { projectName, isDirty, isMaximized, ipcConnected, setIsMaximized } =
-    useAppStore()
+  const { isMaximized, ipcConnected, setIsMaximized } = useAppStore()
+  const { projectName, saveStatus, setProjectBrowserOpen } = useProjectStore()
   const { setSettingsOpen } = useUIStore()
   const { undo, redo, past, future } = useCompositionStore()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -90,13 +91,41 @@ export const TitleBar: React.FC = () => {
         </div>
       </div>
 
-      {/* Center: Active Project Indicator */}
-      <div className="flex items-center gap-2 app-drag-region">
-        <Disc3 className="w-3.5 h-3.5 text-d2-accent opacity-75" />
-        <span className="text-xs font-medium text-d2-textMuted">
-          {projectName}
-          {isDirty && <span className="text-d2-accent ml-1">*</span>}
-        </span>
+      {/* Center: Active Project Indicator & Save Status */}
+      <div className="flex items-center gap-3 app-drag-region">
+        <button
+          onClick={() => setProjectBrowserOpen(true)}
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded hover:bg-d2-surfaceElevated border border-transparent hover:border-d2-border transition-colors app-no-drag"
+          title="Click to open Project Hub"
+        >
+          <Disc3 className="w-3.5 h-3.5 text-d2-accent opacity-80" />
+          <span className="text-xs font-semibold text-white">
+            {projectName}
+          </span>
+        </button>
+
+        {/* Save Status Indicator */}
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-d2-surfaceElevated border border-d2-border text-3xs font-mono app-no-drag">
+          {saveStatus === 'saved' && (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-emerald-400 font-medium">Saved</span>
+            </>
+          )}
+          {saveStatus === 'saving' && (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+              <span className="text-amber-300 font-medium">Saving...</span>
+            </>
+          )}
+          {saveStatus === 'unsaved' && (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span className="text-amber-400 font-medium">Unsaved</span>
+            </>
+          )}
+        </div>
+
         {ipcConnected && (
           <div
             className="flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/40 text-emerald-400 font-medium"

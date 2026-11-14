@@ -102,6 +102,73 @@ const electronAPI = {
     success: boolean
     error?: string
   }> => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_SHOW_IN_FOLDER, filePath),
+
+  // Project Persistence (.d2proj)
+  projectSave: (filePath: string, data: any): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_SAVE, filePath, data),
+
+  projectOpenDialog: (): Promise<{
+    canceled: boolean
+    filePath?: string
+    success?: boolean
+    data?: any
+    error?: string
+  }> => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_OPEN_DIALOG),
+
+  projectSaveDialog: (defaultName?: string): Promise<{
+    canceled: boolean
+    filePath?: string
+  }> => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_SAVE_DIALOG, defaultName),
+
+  projectLoad: (filePath: string): Promise<{ success: boolean; data?: any; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_LOAD, filePath),
+
+  projectAutoSave: (data: any, originalPath?: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_AUTOSAVE, data, originalPath),
+
+  projectGetRecovery: (): Promise<{
+    hasRecovery: boolean
+    timestamp?: string
+    originalPath?: string | null
+    data?: any
+  }> => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_GET_RECOVERY),
+
+  projectDiscardRecovery: (): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_DISCARD_RECOVERY),
+
+  projectGetRecents: (): Promise<any[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_GET_RECENTS),
+
+  projectRemoveRecent: (filePath: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_REMOVE_RECENT, filePath),
+
+  projectDeleteFile: (filePath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_DELETE_FILE, filePath),
+
+  projectBundleAssets: (
+    projectFilePath: string,
+    assets: any[]
+  ): Promise<{ success: boolean; bundledAssets: any[]; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_BUNDLE_ASSETS, projectFilePath, assets),
+
+  projectRevealInExplorer: (filePath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_REVEAL_IN_EXPLORER, filePath),
+
+  // Presets Library
+  presetsGetUser: (): Promise<any[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRESETS_GET_USER),
+
+  presetsSaveUser: (preset: any): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRESETS_SAVE_USER, preset),
+
+  presetsDeleteUser: (category: string, id: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRESETS_DELETE_USER, category, id),
+
+  presetsExportFile: (bundle: any): Promise<{ canceled: boolean; success?: boolean; filePath?: string; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRESETS_EXPORT_FILE, bundle),
+
+  presetsImportFile: (): Promise<{ canceled: boolean; success?: boolean; data?: any; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRESETS_IMPORT_FILE),
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

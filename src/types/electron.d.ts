@@ -91,6 +91,44 @@ export interface ElectronAPI {
     success: boolean
     error?: string
   }>
+
+  // Project Persistence (.d2proj)
+  projectSave: (filePath: string, data: any) => Promise<{ success: boolean; error?: string }>
+  projectOpenDialog: () => Promise<{
+    canceled: boolean
+    filePath?: string
+    success?: boolean
+    data?: any
+    error?: string
+  }>
+  projectSaveDialog: (defaultName?: string) => Promise<{
+    canceled: boolean
+    filePath?: string
+  }>
+  projectLoad: (filePath: string) => Promise<{ success: boolean; data?: any; error?: string }>
+  projectAutoSave: (data: any, originalPath?: string) => Promise<{ success: boolean }>
+  projectGetRecovery: () => Promise<{
+    hasRecovery: boolean
+    timestamp?: string
+    originalPath?: string | null
+    data?: any
+  }>
+  projectDiscardRecovery: () => Promise<boolean>
+  projectGetRecents: () => Promise<any[]>
+  projectRemoveRecent: (filePath: string) => Promise<boolean>
+  projectDeleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>
+  projectBundleAssets: (
+    projectFilePath: string,
+    assets: any[]
+  ) => Promise<{ success: boolean; bundledAssets: any[]; error?: string }>
+  projectRevealInExplorer: (filePath: string) => Promise<{ success: boolean; error?: string }>
+
+  // Presets Library
+  presetsGetUser: () => Promise<any[]>
+  presetsSaveUser: (preset: any) => Promise<{ success: boolean; error?: string }>
+  presetsDeleteUser: (category: string, id: string) => Promise<boolean>
+  presetsExportFile: (bundle: any) => Promise<{ canceled: boolean; success?: boolean; filePath?: string; error?: string }>
+  presetsImportFile: () => Promise<{ canceled: boolean; success?: boolean; data?: any; error?: string }>
 }
 
 declare global {

@@ -1,155 +1,80 @@
 import React from 'react'
-import { Sparkles, CheckCircle2 } from 'lucide-react'
-import { useCompositionStore } from '@/stores/compositionStore'
-
-interface TemplateItem {
-  id: string
-  name: string
-  category: string
-  description: string
-  visualizerType: string
-  bgC1: string
-  bgC2: string
-  visPrimary: string
-  visAccent: string
-}
-
-const templates: TemplateItem[] = [
-  {
-    id: 'minimal-black',
-    name: 'Minimal Obsidian',
-    category: 'Minimalist',
-    description: 'Pitch black background with clean white monochrome waveform',
-    visualizerType: 'classic-waveform',
-    bgC1: '#000000',
-    bgC2: '#0b0d11',
-    visPrimary: '#ffffff',
-    visAccent: '#9ca3af',
-  },
-  {
-    id: 'neon-purple',
-    name: 'Neon Cyberpunk',
-    category: 'Electronic',
-    description: 'Deep violet gradient with high-intensity neon purple spectrum',
-    visualizerType: 'spectrum-bars',
-    bgC1: '#3b0764',
-    bgC2: '#0f172a',
-    visPrimary: '#a855f7',
-    visAccent: '#ec4899',
-  },
-  {
-    id: 'blue-circular',
-    name: 'Futuristic Radar',
-    category: 'Sci-Fi',
-    description: 'Electric cyan circular rings with dark navy atmosphere',
-    visualizerType: 'circular-spectrum',
-    bgC1: '#082f49',
-    bgC2: '#020617',
-    visPrimary: '#06b6d4',
-    visAccent: '#3b82f6',
-  },
-  {
-    id: 'warm-sunset',
-    name: 'Warm Horizon',
-    category: 'Acoustic / Lo-Fi',
-    description: 'Rich amber and sunset gradient with soft glowing bars',
-    visualizerType: 'mirrored-spectrum',
-    bgC1: '#451a03',
-    bgC2: '#0f172a',
-    visPrimary: '#f59e0b',
-    visAccent: '#ef4444',
-  },
-  {
-    id: 'dark-luxury',
-    name: 'Dark Gold Luxury',
-    category: 'Hip-Hop / Trap',
-    description: 'Smoky charcoal with subtle gold accents and radial waveform',
-    visualizerType: 'radial-waveform',
-    bgC1: '#18181b',
-    bgC2: '#09090b',
-    visPrimary: '#eab308',
-    visAccent: '#ca8a04',
-  },
-  {
-    id: 'particle-universe',
-    name: 'Particle Nebula',
-    category: 'Ambient',
-    description: 'Starfield background with dynamic audio-reactive particle cloud',
-    visualizerType: 'particles',
-    bgC1: '#020617',
-    bgC2: '#172554',
-    visPrimary: '#38bdf8',
-    visAccent: '#818cf8',
-  },
-]
+import { Sparkles, LayoutGrid, ArrowRight } from 'lucide-react'
+import { TEMPLATES } from '@/engine/templates/TemplateRegistry'
+import { ProjectTemplate } from '@/engine/templates/types'
+import { ProjectManager } from '@/engine/project/ProjectManager'
+import { useProjectStore } from '@/stores/projectStore'
 
 export const TemplatesPanel: React.FC = () => {
-  const { updateVisualizer, updateBackground, visualizer } = useCompositionStore()
+  const { setTemplateBrowserOpen } = useProjectStore()
 
-  const applyTemplate = (tpl: TemplateItem) => {
-    updateVisualizer({
-      type: tpl.visualizerType,
-      primaryColor: tpl.visPrimary,
-      accentColor: tpl.visAccent,
-    })
-    updateBackground({
-      type: 'gradient',
-      color1: tpl.bgC1,
-      color2: tpl.bgC2,
-    })
+  const handleApply = (tpl: ProjectTemplate) => {
+    ProjectManager.createProjectFromTemplate(tpl)
   }
 
   return (
-    <div className="flex flex-col h-full select-none text-xs">
-      <div className="p-3 border-b border-d2-border">
-        <h2 className="font-bold text-white uppercase tracking-wider text-2xs">
-          Visualizer Templates
-        </h2>
-        <span className="text-2xs text-d2-textSubtle">
-          One-click curated themes for YouTube & Social Media
-        </span>
+    <div className="p-4 space-y-4 select-none">
+      <div className="flex items-center justify-between pb-2 border-b border-d2-border">
+        <div>
+          <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            Starter Templates
+          </h3>
+          <p className="text-2xs text-d2-textMuted mt-0.5">
+            10 professional pre-configured visualizer projects
+          </p>
+        </div>
+
+        <button
+          onClick={() => setTemplateBrowserOpen(true)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded bg-d2-accent/20 hover:bg-d2-accent text-d2-accent hover:text-white border border-d2-accent/30 text-2xs font-medium transition-colors"
+          title="Browse all templates with detailed previews"
+        >
+          <LayoutGrid className="w-3 h-3" />
+          <span>Browse All</span>
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {templates.map((tpl) => {
-          const isCurrent = visualizer.type === tpl.visualizerType
+      {/* Templates List */}
+      <div className="space-y-2.5">
+        {TEMPLATES.map((tpl) => {
+          const visColor = tpl.composition.visualizer.primaryColor || '#06b6d4'
+          const visType = tpl.composition.visualizer.type || 'visualizer'
 
           return (
             <div
               key={tpl.id}
-              onClick={() => applyTemplate(tpl)}
-              className={`p-3 rounded-lg border transition-all cursor-pointer group relative overflow-hidden ${
-                isCurrent
-                  ? 'border-d2-accent bg-d2-surfaceElevated/80 shadow-md'
-                  : 'border-d2-borderSubtle bg-d2-surfaceElevated/30 hover:border-d2-border hover:bg-d2-surfaceElevated/60'
-              }`}
+              onClick={() => handleApply(tpl)}
+              className="group p-3 rounded-xl bg-d2-surfaceElevated/60 hover:bg-d2-surfaceElevated border border-d2-border hover:border-d2-accent/60 transition-all cursor-pointer"
             >
-              {/* Color swatch bar */}
-              <div
-                className="h-1.5 w-full rounded-full mb-2"
-                style={{
-                  background: `linear-gradient(90deg, ${tpl.visPrimary}, ${tpl.visAccent})`,
-                }}
-              />
-
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-white text-2xs">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-white group-hover:text-d2-accent transition-colors">
                   {tpl.name}
                 </span>
-                {isCurrent && (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-d2-accent" />
-                )}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-3xs font-mono font-bold px-1.5 py-0.2 rounded bg-black/60 text-d2-text border border-white/10 uppercase">
+                    {tpl.aspectRatio}
+                  </span>
+                  <span className="text-3xs px-1.5 py-0.2 rounded bg-d2-surface text-d2-textSubtle border border-d2-border">
+                    {tpl.category}
+                  </span>
+                </div>
               </div>
 
-              <p className="text-2xs text-d2-textSubtle mt-1 leading-relaxed">
+              <p className="text-2xs text-d2-textSubtle line-clamp-2 leading-relaxed">
                 {tpl.description}
               </p>
 
-              <div className="flex items-center justify-between mt-2 pt-1 border-t border-d2-borderSubtle text-2xs text-d2-textSubtle">
-                <span className="font-mono">{tpl.category}</span>
-                <span className="flex items-center gap-1 text-d2-accent font-medium">
-                  <Sparkles className="w-2.5 h-2.5" />
-                  Apply Theme
+              <div className="mt-2.5 pt-2 border-t border-d2-border/60 flex items-center justify-between text-3xs text-d2-textMuted font-mono">
+                <span className="flex items-center gap-1.5 capitalize">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: visColor }}
+                  />
+                  {visType.replace('-', ' ')}
+                </span>
+                <span className="group-hover:text-d2-accent transition-colors flex items-center gap-1">
+                  Apply Template <ArrowRight className="w-2.5 h-2.5" />
                 </span>
               </div>
             </div>
