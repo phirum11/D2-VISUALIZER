@@ -1,6 +1,7 @@
 import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { FFmpegPath } from './FFmpegPath'
 
 export interface ExportStartOptions {
   width: number
@@ -41,7 +42,8 @@ export class FFmpegExporter {
     if (this.isNvencAvailable !== null) return this.isNvencAvailable
 
     return new Promise<boolean>((resolve) => {
-      const probe = spawn('ffmpeg', ['-encoders'])
+      const ffmpegBin = FFmpegPath.getFFmpegPath()
+      const probe = spawn(ffmpegBin, ['-encoders'])
       let output = ''
 
       probe.stdout.on('data', (d) => {
@@ -99,6 +101,24 @@ export class FFmpegExporter {
       } catch (err) {
         return { success: false, error: `Failed to create output directory: ${err}` }
       }
+    }
+
+    // Verify sufficient free disk space on target output drive (minimum 500 MB)
+    try {
+      if (fs.promises && fs.promises.statfs) {
+        const diskStats = await fs.promises.statfs(outDir)
+        const freeBytes = diskStats.bavail * diskStats.bsize
+        const minRequiredBytes = 500 * 1024 * 1024 // 500 MB safety threshold
+        if (freeBytes < minRequiredBytes) {
+          const freeMb = (freeBytes / (1024 * 1024)).toFixed(0)
+          return {
+            success: false,
+            error: `Insufficient disk space: only ${freeMb} MB available. At least 500 MB is required on the target drive.`,
+          }
+        }
+      }
+    } catch {
+      // Continue if filesystem statfs is unsupported on specific drive mount
     }
 
     this.currentOutputPath = outputPath
@@ -168,10 +188,11 @@ export class FFmpegExporter {
       outputPath
     )
 
-    console.log('[FFMPEG EXPORT] Spawning FFmpeg with args:', args.join(' '))
+    const ffmpegBin = FFmpegPath.getFFmpegPath()
+    console.log('[FFMPEG EXPORT] Spawning FFmpeg binary:', ffmpegBin, 'with args:', args.join(' '))
 
     try {
-      this.process = spawn('ffmpeg', args)
+      this.process = spawn(ffmpegBin, args)
 
       this.process.stderr.on('data', (data) => {
         const text = data.toString()

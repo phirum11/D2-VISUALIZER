@@ -18,6 +18,10 @@ out/
 build/
 .vite/
 
+# Large Bundled Binaries (packaged locally via electron-builder)
+resources/bin/
+*.exe
+
 # Exports and Renders
 exports/
 *.mp4

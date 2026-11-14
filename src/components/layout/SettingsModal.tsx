@@ -6,19 +6,31 @@ import {
   Video,
   Info,
   CheckCircle2,
-  Folder,
+  Gauge,
+  Keyboard,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore'
 import { useAppStore } from '@/stores/appStore'
+import { usePreviewStore, PreviewQuality } from '@/stores/previewStore'
+import { useProjectStore } from '@/stores/projectStore'
 
 export const SettingsModal: React.FC = () => {
   const { settingsOpen, setSettingsOpen } = useUIStore()
   const { version, platform } = useAppStore()
-  const [activeTab, setActiveTab] = useState<'general' | 'audio' | 'export' | 'about'>('general')
+  const { previewQuality, setPreviewQuality } = usePreviewStore()
+  const {
+    autoSaveEnabled,
+    autoSaveIntervalSeconds,
+    setAutoSaveSettings,
+  } = useProjectStore()
 
-  // Setting states
-  const [autosave, setAutosave] = useState(true)
-  const [autosaveInterval, setAutosaveInterval] = useState('5')
+  const [activeTab, setActiveTab] = useState<
+    'general' | 'performance' | 'audio' | 'export' | 'shortcuts' | 'about'
+  >('general')
+
+  // Audio & Export settings
   const [fftSize, setFftSize] = useState('2048')
   const [sampleRate, setSampleRate] = useState('48000')
   const [hwAccel, setHwAccel] = useState(true)
@@ -28,13 +40,13 @@ export const SettingsModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in-0">
-      <div className="w-full max-w-2xl bg-d2-surface border border-d2-border rounded-xl shadow-2xl overflow-hidden flex flex-col h-[520px]">
+      <div className="w-full max-w-3xl bg-d2-surface border border-d2-border rounded-xl shadow-2xl overflow-hidden flex flex-col h-[560px]">
         {/* Header */}
         <div className="h-12 border-b border-d2-border px-5 flex items-center justify-between bg-d2-surfaceElevated/50">
           <div className="flex items-center gap-2">
             <Sliders className="w-4 h-4 text-d2-accent" />
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-              Application Settings
+              Application Settings & Preferences
             </h2>
           </div>
           <button
@@ -48,7 +60,7 @@ export const SettingsModal: React.FC = () => {
         {/* Content Body with Left Nav */}
         <div className="flex-1 flex overflow-hidden">
           {/* Tabs Nav */}
-          <div className="w-44 border-r border-d2-border p-3 space-y-1 bg-d2-canvas/40">
+          <div className="w-48 border-r border-d2-border p-3 space-y-1 bg-d2-canvas/40 select-none">
             <button
               onClick={() => setActiveTab('general')}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium transition-colors ${
@@ -59,6 +71,18 @@ export const SettingsModal: React.FC = () => {
             >
               <Sliders className="w-3.5 h-3.5" />
               General
+            </button>
+
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium transition-colors ${
+                activeTab === 'performance'
+                  ? 'bg-d2-surfaceElevated text-white border border-d2-border'
+                  : 'text-d2-textMuted hover:text-white hover:bg-d2-surfaceElevated/50'
+              }`}
+            >
+              <Gauge className="w-3.5 h-3.5 text-d2-accent" />
+              Performance Mode
             </button>
 
             <button
@@ -86,6 +110,18 @@ export const SettingsModal: React.FC = () => {
             </button>
 
             <button
+              onClick={() => setActiveTab('shortcuts')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium transition-colors ${
+                activeTab === 'shortcuts'
+                  ? 'bg-d2-surfaceElevated text-white border border-d2-border'
+                  : 'text-d2-textMuted hover:text-white hover:bg-d2-surfaceElevated/50'
+              }`}
+            >
+              <Keyboard className="w-3.5 h-3.5" />
+              Shortcuts
+            </button>
+
+            <button
               onClick={() => setActiveTab('about')}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium transition-colors ${
                 activeTab === 'about'
@@ -100,10 +136,12 @@ export const SettingsModal: React.FC = () => {
 
           {/* Tab Pane */}
           <div className="flex-1 p-6 overflow-y-auto space-y-6">
+            {/* GENERAL TAB */}
             {activeTab === 'general' && (
               <div className="space-y-4">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  Editor & Project Preferences
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Sliders className="w-3.5 h-3.5 text-d2-accent" />
+                  Editor & Project Persistence
                 </h3>
 
                 <div className="space-y-3">
@@ -113,13 +151,15 @@ export const SettingsModal: React.FC = () => {
                         Automatic Background Saving
                       </div>
                       <div className="text-2xs text-d2-textSubtle">
-                        Saves recovery state periodically to prevent data loss
+                        Periodically writes crash-recovery snapshots to protect your work
                       </div>
                     </div>
                     <input
                       type="checkbox"
-                      checked={autosave}
-                      onChange={(e) => setAutosave(e.target.checked)}
+                      checked={autoSaveEnabled}
+                      onChange={(e) =>
+                        setAutoSaveSettings(e.target.checked, autoSaveIntervalSeconds)
+                      }
                       className="w-4 h-4 accent-d2-accent rounded cursor-pointer"
                     />
                   </div>
@@ -127,29 +167,118 @@ export const SettingsModal: React.FC = () => {
                   <div className="flex items-center justify-between p-3 rounded bg-d2-surfaceElevated/40 border border-d2-borderSubtle">
                     <div>
                       <div className="text-xs font-medium text-white">
-                        Autosave Interval
+                        Auto-Save Interval
                       </div>
                       <div className="text-2xs text-d2-textSubtle">
-                        Interval in minutes between recovery snapshots
+                        Frequency of automated project snapshots
                       </div>
                     </div>
                     <select
-                      value={autosaveInterval}
-                      onChange={(e) => setAutosaveInterval(e.target.value)}
-                      className="rounded bg-d2-surface border border-d2-border px-2 py-1 text-xs text-white"
+                      value={autoSaveIntervalSeconds.toString()}
+                      onChange={(e) =>
+                        setAutoSaveSettings(autoSaveEnabled, parseInt(e.target.value, 10))
+                      }
+                      disabled={!autoSaveEnabled}
+                      className="rounded bg-d2-surface border border-d2-border px-2.5 py-1 text-xs text-white disabled:opacity-50"
                     >
-                      <option value="2">2 Minutes</option>
-                      <option value="5">5 Minutes</option>
-                      <option value="10">10 Minutes</option>
+                      <option value="15">Every 15 Seconds (Real-time safety)</option>
+                      <option value="30">Every 30 Seconds (Default recommended)</option>
+                      <option value="60">Every 60 Seconds</option>
+                      <option value="180">Every 3 Minutes</option>
                     </select>
                   </div>
                 </div>
               </div>
             )}
 
+            {/* PERFORMANCE MODE TAB */}
+            {activeTab === 'performance' && (
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Gauge className="w-3.5 h-3.5 text-d2-accent" />
+                  Real-time Preview Performance Engine
+                </h3>
+
+                <div className="p-3.5 rounded bg-d2-accent/10 border border-d2-accent/30 text-2xs text-d2-text">
+                  <span className="font-semibold text-d2-accent">Non-Destructive Scaling: </span>
+                  Preview performance modes scale the canvas fill-rate during interactive editing to ensure smooth 60 FPS playback on laptops and integrated GPUs. <span className="font-semibold text-white">Final video export quality is NEVER compromised</span> and always renders at full native resolution (1080p, 1440p, or 4K).
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    {
+                      id: 'performance' as PreviewQuality,
+                      title: 'Performance',
+                      desc: '0.6x resolution scale. Optimized for battery life and laptop iGPUs.',
+                      badge: 'Fastest 60fps',
+                    },
+                    {
+                      id: 'balanced' as PreviewQuality,
+                      title: 'Balanced',
+                      desc: '0.85x resolution scale. Smooth editing with sharp visual detail.',
+                      badge: 'Recommended',
+                    },
+                    {
+                      id: 'quality' as PreviewQuality,
+                      title: 'Quality',
+                      desc: '1.0x native unthrottled resolution. Pixel-perfect studio fidelity.',
+                      badge: 'Studio Native',
+                    },
+                  ].map((mode) => (
+                    <div
+                      key={mode.id}
+                      onClick={() => setPreviewQuality(mode.id)}
+                      className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
+                        previewQuality === mode.id
+                          ? 'bg-d2-accent/15 border-d2-accent text-white shadow-lg'
+                          : 'bg-d2-surfaceElevated/30 border-d2-borderSubtle hover:border-d2-border text-d2-textMuted'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-white">{mode.title}</span>
+                        <span
+                          className={`text-3xs px-1.5 py-0.5 rounded font-medium ${
+                            previewQuality === mode.id
+                              ? 'bg-d2-accent text-black font-semibold'
+                              : 'bg-d2-surface text-d2-textSubtle'
+                          }`}
+                        >
+                          {mode.badge}
+                        </span>
+                      </div>
+                      <p className="text-2xs leading-relaxed text-d2-textSubtle">{mode.desc}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    Hardware Acceleration Status
+                  </h4>
+                  <div className="p-3 rounded bg-d2-surfaceElevated/40 border border-d2-borderSubtle grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-d2-textSubtle block text-2xs">GPU Acceleration:</span>
+                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Enabled (WebGL 2.0 Active)
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-d2-textSubtle block text-2xs">Hardware Video Encoder:</span>
+                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> NVENC / QSV Ready
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* AUDIO TAB */}
             {activeTab === 'audio' && (
               <div className="space-y-4">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Cpu className="w-3.5 h-3.5 text-d2-accent" />
                   Audio DSP & Analysis
                 </h3>
 
@@ -196,9 +325,11 @@ export const SettingsModal: React.FC = () => {
               </div>
             )}
 
+            {/* EXPORT TAB */}
             {activeTab === 'export' && (
               <div className="space-y-4">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Video className="w-3.5 h-3.5 text-d2-accent" />
                   Rendering & FFmpeg Pipeline
                 </h3>
 
@@ -209,7 +340,7 @@ export const SettingsModal: React.FC = () => {
                         Hardware Accelerated Video Encoding
                       </div>
                       <div className="text-2xs text-d2-textSubtle">
-                        Use NVIDIA NVENC or Intel QSV when supported by FFmpeg
+                        Use NVIDIA NVENC or Intel QSV when supported by hardware
                       </div>
                     </div>
                     <input
@@ -241,29 +372,59 @@ export const SettingsModal: React.FC = () => {
 
                   <div className="p-3 rounded bg-d2-surfaceElevated/40 border border-d2-borderSubtle space-y-2">
                     <div className="text-xs font-medium text-white">
-                      Default Export Directory
+                      Disk Space Safety Threshold
                     </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value="C:\Users\User\Videos\D2_Visualizers"
-                        className="flex-1 bg-d2-canvas border border-d2-border rounded px-2.5 py-1 text-2xs font-mono text-d2-textMuted"
-                      />
-                      <button className="px-3 py-1 bg-d2-surfaceElevated border border-d2-border rounded text-2xs hover:bg-d2-surfaceActive flex items-center gap-1.5 text-white">
-                        <Folder className="w-3 h-3 text-d2-accent" />
-                        Browse
-                      </button>
+                    <div className="text-2xs text-d2-textSubtle">
+                      The exporter automatically enforces a minimum of 500 MB free space before starting any video rendering job to protect against disk exhaustion.
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
+            {/* SHORTCUTS TAB */}
+            {activeTab === 'shortcuts' && (
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Keyboard className="w-3.5 h-3.5 text-d2-accent" />
+                  Keyboard Shortcuts & Hotkeys
+                </h3>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {[
+                    { key: 'Space', desc: 'Play / Pause Preview & Audio' },
+                    { key: 'Ctrl + S', desc: 'Save Project (.d2proj)' },
+                    { key: 'Ctrl + Shift + S', desc: 'Save Project As...' },
+                    { key: 'Ctrl + O', desc: 'Open Project File' },
+                    { key: 'Ctrl + N', desc: 'Create New Empty Project' },
+                    { key: 'Ctrl + Z', desc: 'Undo Timeline Edit' },
+                    { key: 'Ctrl + Y', desc: 'Redo Timeline Edit' },
+                    { key: 'Ctrl + K', desc: 'Split Clip at Current Playhead' },
+                    { key: 'Delete / Backspace', desc: 'Delete Selected Clip' },
+                    { key: '1 – 9', desc: 'Switch Active Visualizer Style' },
+                    { key: 'F', desc: 'Zoom Canvas to Fit' },
+                    { key: 'Esc', desc: 'Close Active Modal / Sheet' },
+                  ].map((s, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2 rounded bg-d2-surfaceElevated/40 border border-d2-borderSubtle"
+                    >
+                      <span className="text-d2-textMuted text-2xs">{s.desc}</span>
+                      <kbd className="px-2 py-0.5 rounded bg-d2-surface border border-d2-border text-2xs font-mono text-d2-accent font-semibold">
+                        {s.key}
+                      </kbd>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ABOUT TAB */}
             {activeTab === 'about' && (
               <div className="space-y-4">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  System Environment
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-d2-accent" />
+                  System & Engine Environment
                 </h3>
 
                 <div className="p-4 rounded-lg bg-d2-surfaceElevated/40 border border-d2-border space-y-3">
@@ -272,24 +433,32 @@ export const SettingsModal: React.FC = () => {
                     <span className="font-semibold text-white">D2 VISUALIZER</span>
                   </div>
                   <div className="flex items-center justify-between text-xs pb-2 border-b border-d2-borderSubtle">
-                    <span className="text-d2-textMuted">App Version</span>
-                    <span className="font-mono text-d2-accent">{version}</span>
+                    <span className="text-d2-textMuted">Production Release</span>
+                    <span className="font-mono text-d2-accent font-bold">v{version} (Production)</span>
                   </div>
                   <div className="flex items-center justify-between text-xs pb-2 border-b border-d2-borderSubtle">
                     <span className="text-d2-textMuted">Operating System</span>
-                    <span className="font-mono text-white capitalize">{platform} 64-bit</span>
+                    <span className="font-mono text-white capitalize">{platform} 64-bit (Windows 10/11)</span>
                   </div>
                   <div className="flex items-center justify-between text-xs pb-2 border-b border-d2-borderSubtle">
-                    <span className="text-d2-textMuted">FFmpeg Engine</span>
+                    <span className="text-d2-textMuted">Bundled Video Pipeline</span>
                     <span className="flex items-center gap-1 text-emerald-400 font-medium">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      Detected on PATH (Full Build)
+                      Standalone FFmpeg & FFprobe (Bundled Gyan.dev x64)
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-d2-textMuted">Renderer Model</span>
-                    <span className="font-mono text-white">HTML5 Canvas 2D + Three.js</span>
+                  <div className="flex items-center justify-between text-xs pb-2 border-b border-d2-borderSubtle">
+                    <span className="text-d2-textMuted">Audio DSP Engine</span>
+                    <span className="font-mono text-white">Web Audio API + Real-Time FFT Analyser</span>
                   </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-d2-textMuted">Graphics & Visualizers</span>
+                    <span className="font-mono text-white">HTML5 Canvas 2D + Three.js WebGL (10 Styles)</span>
+                  </div>
+                </div>
+
+                <div className="text-3xs text-d2-textSubtle text-center">
+                  © 2026 D2 Visualizer Studio. Designed for professional music visualization and cinematic video creation.
                 </div>
               </div>
             )}

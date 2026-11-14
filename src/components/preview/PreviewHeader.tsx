@@ -150,14 +150,14 @@ export const PreviewHeader: React.FC = () => {
             }
             className="bg-transparent text-2xs text-white font-medium focus:outline-none cursor-pointer capitalize"
           >
-            <option value="draft" className="bg-d2-surface text-white">
-              Draft (Half Res)
+            <option value="performance" className="bg-d2-surface text-white">
+              Performance (Fast)
             </option>
             <option value="balanced" className="bg-d2-surface text-white">
-              Balanced (720p)
+              Balanced (Standard)
             </option>
-            <option value="high" className="bg-d2-surface text-white">
-              High (Full Res)
+            <option value="quality" className="bg-d2-surface text-white">
+              Quality (Full Res)
             </option>
           </select>
         </div>

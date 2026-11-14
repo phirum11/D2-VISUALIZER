@@ -26,6 +26,7 @@ interface ProjectState {
   // Auto-Save Configuration
   autoSaveEnabled: boolean
   autoSaveIntervalSeconds: number
+  setAutoSaveSettings: (enabled: boolean, intervalSeconds: number) => void
 
   // Recents & Recovery
   recentProjects: RecentProjectItem[]
@@ -103,6 +104,19 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     lastSavedAt: null,
     autoSaveEnabled: true,
     autoSaveIntervalSeconds: 30,
+
+    setAutoSaveSettings: (enabled: boolean, intervalSeconds: number) => {
+      set({ autoSaveEnabled: enabled, autoSaveIntervalSeconds: intervalSeconds })
+      if (autoSaveTimer) clearInterval(autoSaveTimer)
+      if (enabled && intervalSeconds > 0) {
+        autoSaveTimer = setInterval(() => {
+          const state = get()
+          if (state.autoSaveEnabled && state.isDirty && state.saveStatus !== 'saving') {
+            get().autoSaveSnapshot()
+          }
+        }, intervalSeconds * 1000)
+      }
+    },
     recentProjects: [],
     recoverySession: null,
     missingAssets: [],

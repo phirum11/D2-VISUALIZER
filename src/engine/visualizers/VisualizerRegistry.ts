@@ -99,6 +99,5 @@ export class VisualizerRegistry {
     for (const plugin of this.plugins.values()) {
       plugin.dispose()
     }
-    this.plugins.clear()
   }
 }

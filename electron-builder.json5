@@ -1,0 +1,41 @@
+{
+  appId: "com.d2.visualizer",
+  productName: "D2 VISUALIZER",
+  copyright: "Copyright © 2026 D2 Visualizer Studio",
+  directories: {
+    output: "release",
+    buildResources: "resources"
+  },
+  files: [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "package.json"
+  ],
+  extraResources: [
+    {
+      from: "resources/bin/win",
+      to: "bin/win",
+      filter: ["**/*"]
+    }
+  ],
+  win: {
+    target: [
+      {
+        target: "nsis",
+        arch: ["x64"]
+      }
+    ],
+    icon: "resources/icon.ico",
+    artifactName: "D2_VISUALIZER_Setup_x64.${ext}"
+  },
+  nsis: {
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: "always",
+    createStartMenuShortcut: true,
+    shortcutName: "D2 VISUALIZER",
+    uninstallDisplayName: "D2 VISUALIZER",
+    deleteAppDataOnUninstall: false,
+    runAfterFinish: true
+  }
+}

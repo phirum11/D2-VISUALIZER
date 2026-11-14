@@ -8,7 +8,7 @@ export const PreviewCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const { aspectRatio, zoom, showSafeGuides, isPlaying } = usePreviewStore()
+  const { aspectRatio, zoom, showSafeGuides, isPlaying, previewQuality } = usePreviewStore()
   const { visualizer, background, text, effects, ambientParticles, cinematicMotion, layers } =
     useCompositionStore()
 
@@ -26,6 +26,10 @@ export const PreviewCanvas: React.FC = () => {
   }
 
   const { width: nativeWidth, height: nativeHeight } = getNativeDimensions()
+  const qualityScale =
+    previewQuality === 'performance' ? 0.6 : previewQuality === 'balanced' ? 0.85 : 1.0
+  const bufferWidth = Math.round(nativeWidth * qualityScale)
+  const bufferHeight = Math.round(nativeHeight * qualityScale)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -38,13 +42,10 @@ export const PreviewCanvas: React.FC = () => {
     const compositor = LayerCompositor.getInstance()
 
     const render = () => {
-      const w = nativeWidth
-      const h = nativeHeight
-
-      // Set canvas pixel buffer
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w
-        canvas.height = h
+      // Set canvas pixel buffer according to active performance mode
+      if (canvas.width !== bufferWidth || canvas.height !== bufferHeight) {
+        canvas.width = bufferWidth
+        canvas.height = bufferHeight
       }
 
       // Query real-time FFT audio frame and playhead
@@ -53,6 +54,11 @@ export const PreviewCanvas: React.FC = () => {
       const timestamp = audioTime > 0 ? audioTime : performance.now() / 1000
       const state = useCompositionStore.getState()
 
+      ctx.save()
+      if (qualityScale !== 1) {
+        ctx.scale(qualityScale, qualityScale)
+      }
+
       // Delegate complete multi-layer rendering to LayerCompositor
       compositor.render({
         canvas,
@@ -60,13 +66,15 @@ export const PreviewCanvas: React.FC = () => {
         state,
         audioFrame,
         timestamp,
-        width: w,
-        height: h,
+        width: nativeWidth,
+        height: nativeHeight,
         dpr: window.devicePixelRatio || 1,
         showSafeGuides,
         isPlaying,
         audioTime,
       })
+
+      ctx.restore()
 
       animId = requestAnimationFrame(render)
     }
@@ -79,8 +87,12 @@ export const PreviewCanvas: React.FC = () => {
   }, [
     nativeWidth,
     nativeHeight,
+    bufferWidth,
+    bufferHeight,
+    qualityScale,
     aspectRatio,
     isPlaying,
+    previewQuality,
     visualizer,
     background,
     text,

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export type AspectRatio = '16:9' | '9:16' | '1:1'
-export type PreviewQuality = 'draft' | 'balanced' | 'high'
+export type PreviewQuality = 'performance' | 'balanced' | 'quality'
 export type FitMode = 'fit' | 'fill'
 
 interface PreviewState {
