@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import {
   Play,
   Pause,
@@ -8,77 +8,43 @@ import {
   VolumeX,
   SkipBack,
   SkipForward,
+  Activity,
 } from 'lucide-react'
-import { usePreviewStore } from '@/stores/previewStore'
+import { useAudioStore } from '@/stores/audioStore'
+import { formatTimecode } from '@/engine/audio/AudioMetadata'
 import { Tooltip } from '@/components/ui/Tooltip'
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = Math.floor(seconds % 60)
-  const ms = Math.floor((seconds % 1) * 100)
-  return `${m.toString().padStart(2, '0')}:${s
-    .toString()
-    .padStart(2, '0')}.${ms.toString().padStart(2, '0')}`
-}
 
 export const PlaybackToolbar: React.FC = () => {
   const {
-    isPlaying,
+    status,
     currentTime,
     duration,
     volume,
+    isMuted,
     isLooping,
-    setIsPlaying,
-    setCurrentTime,
+    play,
+    pause,
+    stop,
+    seek,
     setVolume,
+    toggleMute,
     toggleLooping,
-  } = usePreviewStore()
+    setAudioMonitorOpen,
+  } = useAudioStore()
 
-  const animRef = useRef<number | null>(null)
-  const lastTimeRef = useRef<number | null>(null)
+  const isPlaying = status === 'playing'
 
-  // Simulation timer for playback interaction
-  useEffect(() => {
+  const handleTogglePlay = () => {
     if (isPlaying) {
-      lastTimeRef.current = performance.now()
-      const step = (now: number) => {
-        if (lastTimeRef.current !== null) {
-          const delta = (now - lastTimeRef.current) / 1000
-          const current = usePreviewStore.getState().currentTime
-          const next = current + delta
-          if (next >= duration) {
-            if (isLooping) {
-              setCurrentTime(0)
-            } else {
-              setIsPlaying(false)
-              setCurrentTime(duration)
-            }
-          } else {
-            setCurrentTime(next)
-          }
-        }
-        lastTimeRef.current = now
-        animRef.current = requestAnimationFrame(step)
-      }
-      animRef.current = requestAnimationFrame(step)
+      pause()
     } else {
-      if (animRef.current) cancelAnimationFrame(animRef.current)
-      lastTimeRef.current = null
+      play()
     }
-
-    return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current)
-    }
-  }, [isPlaying, duration, isLooping, setCurrentTime, setIsPlaying])
-
-  const handleStop = () => {
-    setIsPlaying(false)
-    setCurrentTime(0)
   }
 
   const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value)
-    setCurrentTime(val)
+    seek(val)
   }
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
@@ -89,7 +55,7 @@ export const PlaybackToolbar: React.FC = () => {
       <div className="flex items-center gap-1.5">
         <Tooltip content="Return to Start" side="top">
           <button
-            onClick={() => setCurrentTime(0)}
+            onClick={() => seek(0)}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-d2-surfaceElevated text-d2-textMuted hover:text-white transition-colors"
           >
             <SkipBack className="w-3.5 h-3.5" />
@@ -97,7 +63,7 @@ export const PlaybackToolbar: React.FC = () => {
         </Tooltip>
 
         <button
-          onClick={() => setIsPlaying(!isPlaying)}
+          onClick={handleTogglePlay}
           className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
             isPlaying
               ? 'bg-d2-accent text-white shadow-lg shadow-d2-accent/30'
@@ -115,7 +81,7 @@ export const PlaybackToolbar: React.FC = () => {
 
         <Tooltip content="Stop" side="top">
           <button
-            onClick={handleStop}
+            onClick={stop}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-d2-surfaceElevated text-d2-textMuted hover:text-white transition-colors"
           >
             <Square className="w-3.5 h-3.5 fill-current" />
@@ -124,9 +90,7 @@ export const PlaybackToolbar: React.FC = () => {
 
         <Tooltip content="Forward 5s" side="top">
           <button
-            onClick={() =>
-              setCurrentTime(Math.min(duration, currentTime + 5))
-            }
+            onClick={() => seek(Math.min(duration, currentTime + 5))}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-d2-surfaceElevated text-d2-textMuted hover:text-white transition-colors"
           >
             <SkipForward className="w-3.5 h-3.5" />
@@ -134,10 +98,10 @@ export const PlaybackToolbar: React.FC = () => {
         </Tooltip>
       </div>
 
-      {/* Center: Timecode & Scrubber */}
+      {/* Center: Real Timecode & Scrubber */}
       <div className="flex-1 max-w-xl mx-6 flex items-center gap-3">
         <span className="font-mono text-xs font-semibold text-white min-w-[65px] text-right">
-          {formatTime(currentTime)}
+          {formatTimecode(currentTime)}
         </span>
 
         {/* Scrubber Bar */}
@@ -145,7 +109,7 @@ export const PlaybackToolbar: React.FC = () => {
           <input
             type="range"
             min={0}
-            max={duration}
+            max={duration || 100}
             step={0.1}
             value={currentTime}
             onChange={handleScrub}
@@ -157,12 +121,22 @@ export const PlaybackToolbar: React.FC = () => {
         </div>
 
         <span className="font-mono text-xs text-d2-textSubtle min-w-[65px]">
-          {formatTime(duration)}
+          {formatTimecode(duration)}
         </span>
       </div>
 
-      {/* Right: Loop & Volume */}
-      <div className="flex items-center gap-3">
+      {/* Right: Audio Monitor, Loop & Volume */}
+      <div className="flex items-center gap-2.5">
+        <Tooltip content="Live FFT Frequency Monitor" side="top">
+          <button
+            onClick={() => setAudioMonitorOpen(true)}
+            className="flex items-center gap-1 text-2xs px-2 py-1 rounded bg-d2-surfaceElevated border border-d2-border text-cyan-400 hover:text-white transition-colors"
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span className="font-mono">FFT</span>
+          </button>
+        </Tooltip>
+
         <Tooltip
           content={isLooping ? 'Looping Enabled' : 'Looping Disabled'}
           side="top"
@@ -181,10 +155,10 @@ export const PlaybackToolbar: React.FC = () => {
 
         <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setVolume(volume > 0 ? 0 : 0.85)}
+            onClick={toggleMute}
             className="text-d2-textSubtle hover:text-white transition-colors"
           >
-            {volume === 0 ? (
+            {isMuted || volume === 0 ? (
               <VolumeX className="w-4 h-4 text-d2-danger" />
             ) : (
               <Volume2 className="w-4 h-4" />
@@ -195,7 +169,7 @@ export const PlaybackToolbar: React.FC = () => {
             min={0}
             max={1}
             step={0.05}
-            value={volume}
+            value={isMuted ? 0 : volume}
             onChange={(e) => setVolume(parseFloat(e.target.value))}
             className="w-16 h-1 bg-d2-surfaceElevated rounded appearance-none cursor-pointer accent-d2-accent"
           />

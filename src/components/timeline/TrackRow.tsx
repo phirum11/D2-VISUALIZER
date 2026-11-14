@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 import {
   Eye,
   EyeOff,
@@ -13,6 +13,8 @@ import {
   Image as ImageIcon,
 } from 'lucide-react'
 import { TimelineTrack, useTimelineStore } from '@/stores/timelineStore'
+import { useAudioStore } from '@/stores/audioStore'
+import { WaveformGenerator } from '@/engine/audio/WaveformGenerator'
 
 interface TrackProps {
   track: TimelineTrack
@@ -110,13 +112,15 @@ export const TrackHeader: React.FC<TrackProps> = ({ track }) => {
 
 export const TrackLane: React.FC<TrackProps> = ({ track }) => {
   const { zoom, selectedClipId, setSelectedClipId } = useTimelineStore()
+  const waveform = useAudioStore((s) => s.waveform)
+  const currentTime = useAudioStore((s) => s.currentTime)
 
   return (
     <div className="h-11 relative overflow-visible flex items-center bg-d2-canvas/30 hover:bg-d2-surfaceElevated/15 transition-colors">
       {track.clips.map((clip) => {
         const isSelected = selectedClipId === clip.id
         const clipLeft = clip.startTime * zoom
-        const clipWidth = clip.duration * zoom
+        const clipWidth = Math.max(20, clip.duration * zoom)
 
         return (
           <div
@@ -134,33 +138,72 @@ export const TrackLane: React.FC<TrackProps> = ({ track }) => {
                 : 'hover:brightness-110'
             } ${!track.visible ? 'opacity-30' : ''}`}
           >
-            <div className="flex items-center gap-1.5 overflow-hidden">
+            <div className="flex items-center gap-1.5 overflow-hidden z-10">
               <span className="text-3xs font-semibold text-white truncate drop-shadow-sm">
                 {clip.name}
               </span>
             </div>
 
-            {/* Audio Waveform representation */}
+            {/* Real Decoded Waveform Canvas for Audio Track */}
             {track.type === 'audio' && (
-              <div className="absolute inset-0 flex items-center justify-around px-2 opacity-35 pointer-events-none">
-                {Array.from({ length: 48 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-0.5 bg-indigo-300 rounded-full"
-                    style={{
-                      height: `${Math.abs(Math.sin(i * 0.45)) * 75 + 15}%`,
-                    }}
+              <div className="absolute inset-0 flex items-center px-1 overflow-hidden pointer-events-none opacity-60">
+                {waveform ? (
+                  <WaveformCanvas
+                    waveform={waveform}
+                    width={clipWidth}
+                    progress={clip.duration > 0 ? currentTime / clip.duration : 0}
                   />
-                ))}
+                ) : (
+                  <div className="w-full flex items-center justify-around opacity-40">
+                    {Array.from({ length: 48 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="w-0.5 bg-indigo-300 rounded-full"
+                        style={{
+                          height: `${Math.abs(Math.sin(i * 0.45)) * 75 + 15}%`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
-            <span className="text-3xs font-mono text-white/70 shrink-0 ml-1">
-              {clip.duration}s
+            <span className="text-3xs font-mono text-white/70 shrink-0 ml-1 z-10">
+              {clip.duration.toFixed(1)}s
             </span>
           </div>
         )
       })}
     </div>
   )
+}
+
+const WaveformCanvas: React.FC<{
+  waveform: any
+  width: number
+  progress: number
+}> = ({ waveform, width, progress }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    canvas.width = Math.max(10, Math.floor(width))
+    canvas.height = 34
+
+    WaveformGenerator.drawWaveform(
+      ctx,
+      waveform,
+      canvas.width,
+      canvas.height,
+      '#818cf8',
+      progress
+    )
+  }, [waveform, width, progress])
+
+  return <canvas ref={canvasRef} className="w-full h-full" />
 }

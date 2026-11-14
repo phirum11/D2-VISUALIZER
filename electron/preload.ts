@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from './ipc/channels'
 
 const electronAPI = {
-  // App info
+  // App info & diagnostics
   getVersion: (): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_VERSION),
   getPlatform: (): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_PLATFORM),
   ping: (): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.PING),
@@ -20,6 +20,29 @@ const electronAPI = {
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.WINDOW_ON_MAXIMIZE_CHANGE, handler)
     }
+  },
+
+  // Media & Audio IPC
+  openAudioFileDialog: (): Promise<{
+    canceled: boolean
+    filePath?: string
+    fileName?: string
+    fileSize?: number
+  }> => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_AUDIO),
+
+  readAudioBuffer: (filePath: string): Promise<Uint8Array> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MEDIA_READ_BUFFER, filePath),
+
+  getFileStats: (filePath: string): Promise<{
+    size: number
+    name: string
+    extension: string
+  }> => ipcRenderer.invoke(IPC_CHANNELS.MEDIA_GET_STATS, filePath),
+
+  // Helper to convert safe local path to d2-media URL
+  getMediaUrl: (filePath: string): string => {
+    const normalized = filePath.replace(/\\/g, '/')
+    return `d2-media://${encodeURIComponent(normalized)}`
   },
 }
 

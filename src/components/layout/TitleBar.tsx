@@ -15,6 +15,7 @@ import {
 import { useAppStore } from '@/stores/appStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useCompositionStore } from '@/stores/compositionStore'
+import { useAudioStore } from '@/stores/audioStore'
 import { ProjectMenu } from './ProjectMenu'
 import { Tooltip } from '@/components/ui/Tooltip'
 
@@ -107,8 +108,19 @@ export const TitleBar: React.FC = () => {
         )}
       </div>
 
-      {/* Right: Settings & Windows Window Controls */}
+      {/* Right: Audio Monitor, Settings & Windows Window Controls */}
       <div className="flex items-center gap-0.5 app-no-drag">
+        {/* Live Audio FFT Monitor button */}
+        <Tooltip content="Live Audio FFT Monitor" side="bottom">
+          <button
+            onClick={() => useAudioStore.getState().setAudioMonitorOpen(true)}
+            className="w-8 h-8 flex items-center justify-center rounded hover:bg-d2-surfaceElevated text-cyan-400 hover:text-white transition-colors"
+            aria-label="Audio Monitor"
+          >
+            <Activity className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
+
         {/* Settings button */}
         <Tooltip content="Application Settings" side="bottom">
           <button

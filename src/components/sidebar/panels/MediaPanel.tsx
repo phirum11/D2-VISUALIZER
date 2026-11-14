@@ -2,69 +2,55 @@ import React, { useState } from 'react'
 import {
   UploadCloud,
   Music,
-  Image as ImageIcon,
-  Film,
-  Search,
+  Trash2,
   CheckCircle2,
+  Activity,
+  Search,
+  Sparkles,
+  Info,
 } from 'lucide-react'
-
-interface MediaItem {
-  id: string
-  name: string
-  type: 'audio' | 'image' | 'video'
-  duration?: string
-  size: string
-  active?: boolean
-}
-
-const sampleMedia: MediaItem[] = [
-  {
-    id: '1',
-    name: 'Starlight_Echoes_Master_48k.wav',
-    type: 'audio',
-    duration: '03:18',
-    size: '34.2 MB',
-    active: true,
-  },
-  {
-    id: '2',
-    name: 'Deep_Bass_Drop_140bpm.mp3',
-    type: 'audio',
-    duration: '02:45',
-    size: '6.4 MB',
-  },
-  {
-    id: '3',
-    name: 'Cosmic_Nebula_Background.png',
-    type: 'image',
-    size: '3.8 MB',
-    active: true,
-  },
-  {
-    id: '4',
-    name: 'Cyberpunk_City_Loop.mp4',
-    type: 'video',
-    duration: '00:15',
-    size: '18.4 MB',
-  },
-  {
-    id: '5',
-    name: 'Artist_Official_Logo_White.png',
-    type: 'image',
-    size: '512 KB',
-    active: true,
-  },
-]
+import { useAudioStore } from '@/stores/audioStore'
+import { formatTimecode, formatFileSize } from '@/engine/audio/AudioMetadata'
 
 export const MediaPanel: React.FC = () => {
-  const [filter, setFilter] = useState<'all' | 'audio' | 'image' | 'video'>('all')
+  const {
+    importedFiles,
+    currentTrack,
+    importAudioViaDialog,
+    importAudioFile,
+    setAudioMonitorOpen,
+    removeTrack,
+  } = useAudioStore()
+
+  const [isDragging, setIsDragging] = useState(false)
   const [search, setSearch] = useState('')
 
-  const filteredMedia = sampleMedia.filter((item) => {
-    const matchesFilter = filter === 'all' || item.type === filter
-    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase())
-    return matchesFilter && matchesSearch
-  })
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0]
+      await importAudioFile(file)
+    }
+  }
+
+  const filtered = importedFiles.filter((item) =>
+    item.name.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
     <div className="flex flex-col h-full select-none text-xs">
@@ -75,107 +61,162 @@ export const MediaPanel: React.FC = () => {
             Media Library
           </h2>
           <span className="text-2xs text-d2-textSubtle">
-            {sampleMedia.length} Project Assets
+            {importedFiles.length} Imported Tracks
           </span>
         </div>
 
-        <button className="px-2.5 py-1 rounded bg-d2-accent hover:bg-d2-accentHover text-white text-2xs font-semibold shadow-sm transition-colors flex items-center gap-1.5">
-          <UploadCloud className="w-3 h-3" />
-          Import
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setAudioMonitorOpen(true)}
+            className="p-1 rounded bg-d2-surfaceElevated hover:bg-d2-surfaceActive border border-d2-border text-cyan-400 hover:text-white transition-colors"
+            title="Open Live FFT Audio Monitor"
+          >
+            <Activity className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => importAudioViaDialog()}
+            className="px-2.5 py-1 rounded bg-d2-accent hover:bg-d2-accentHover text-white text-2xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
+          >
+            <UploadCloud className="w-3 h-3" />
+            Import Audio
+          </button>
+        </div>
       </div>
 
-      {/* Dropzone */}
+      {/* Drag & Drop Area */}
       <div className="p-3">
-        <div className="border border-dashed border-d2-border hover:border-d2-accent rounded-lg p-3 text-center bg-d2-canvas/30 hover:bg-d2-surfaceElevated/40 transition-colors cursor-pointer group">
-          <UploadCloud className="w-6 h-6 mx-auto text-d2-textSubtle group-hover:text-d2-accent transition-colors mb-1" />
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => importAudioViaDialog()}
+          className={`border border-dashed rounded-lg p-3 text-center transition-colors cursor-pointer group ${
+            isDragging
+              ? 'border-d2-accent bg-d2-accent/10'
+              : 'border-d2-border hover:border-d2-accent bg-d2-canvas/30 hover:bg-d2-surfaceElevated/40'
+          }`}
+        >
+          <UploadCloud
+            className={`w-6 h-6 mx-auto transition-colors mb-1 ${
+              isDragging ? 'text-d2-accent' : 'text-d2-textSubtle group-hover:text-d2-accent'
+            }`}
+          />
           <p className="text-2xs font-medium text-d2-text">
-            Drag audio, images, or video here
+            Drag audio file here or click to browse
           </p>
           <p className="text-2xs text-d2-textSubtle mt-0.5">
-            WAV, MP3, FLAC, PNG, JPG, MP4
+            MP3, WAV, FLAC, OGG, AAC
           </p>
         </div>
       </div>
 
-      {/* Search & Filter */}
-      <div className="px-3 pb-2 space-y-2">
+      {/* Search */}
+      <div className="px-3 pb-2">
         <div className="relative">
           <input
             type="text"
-            placeholder="Search project media..."
+            placeholder="Search audio assets..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-d2-canvas border border-d2-border rounded px-2.5 py-1 text-2xs text-d2-text placeholder-d2-textSubtle focus:outline-none focus:border-d2-accent pl-7"
           />
           <Search className="w-3.5 h-3.5 text-d2-textSubtle absolute left-2 top-1/2 -translate-y-1/2" />
         </div>
-
-        <div className="flex items-center gap-1">
-          {(['all', 'audio', 'image', 'video'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setFilter(t)}
-              className={`flex-1 py-1 rounded text-2xs font-medium capitalize transition-colors ${
-                filter === t
-                  ? 'bg-d2-surfaceElevated text-white border border-d2-border'
-                  : 'text-d2-textSubtle hover:text-white hover:bg-d2-surfaceElevated/40'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Asset List */}
+      {/* Track List */}
       <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5">
-        {filteredMedia.map((item) => {
-          const Icon =
-            item.type === 'audio'
-              ? Music
-              : item.type === 'video'
-              ? Film
-              : ImageIcon
-
-          return (
-            <div
-              key={item.id}
-              className={`p-2 rounded border transition-colors flex items-center justify-between cursor-pointer group ${
-                item.active
-                  ? 'bg-d2-surfaceElevated/80 border-d2-accent/60'
-                  : 'bg-d2-surfaceElevated/30 border-d2-borderSubtle hover:border-d2-border hover:bg-d2-surfaceElevated/60'
-              }`}
+        {filtered.length === 0 ? (
+          <div className="p-4 rounded-lg bg-d2-surfaceElevated/30 border border-d2-borderSubtle text-center space-y-2">
+            <Info className="w-5 h-5 text-d2-textSubtle mx-auto" />
+            <p className="text-2xs text-d2-textSubtle">
+              No audio imported yet. Import an MP3, WAV or FLAC file, or click below to test with the built-in signal generator.
+            </p>
+            <button
+              onClick={() => {
+                useAudioStore.getState().play()
+              }}
+              className="px-3 py-1 rounded bg-d2-surfaceElevated hover:bg-d2-surfaceActive border border-d2-border text-2xs text-cyan-400 font-medium inline-flex items-center gap-1.5"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div
-                  className={`w-7 h-7 rounded flex items-center justify-center shrink-0 ${
-                    item.type === 'audio'
-                      ? 'bg-indigo-500/20 text-indigo-400'
-                      : item.type === 'video'
-                      ? 'bg-amber-500/20 text-amber-400'
-                      : 'bg-cyan-500/20 text-cyan-400'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
+              <Sparkles className="w-3 h-3" />
+              Play Test Synthesizer Demo
+            </button>
+          </div>
+        ) : (
+          filtered.map((item) => {
+            const isActive = currentTrack?.id === item.id
+
+            return (
+              <div
+                key={item.id}
+                className={`p-2.5 rounded-lg border transition-all flex flex-col gap-1.5 ${
+                  isActive
+                    ? 'bg-d2-surfaceElevated border-d2-accent/80 shadow-md shadow-d2-accent/10'
+                    : 'bg-d2-surfaceElevated/40 border-d2-borderSubtle hover:border-d2-border hover:bg-d2-surfaceElevated/70'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded flex items-center justify-center bg-indigo-500/20 text-indigo-400 shrink-0">
+                      <Music className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-2xs font-semibold text-white truncate max-w-[150px]">
+                        {item.name}
+                      </div>
+                      <div className="text-3xs text-d2-textSubtle font-mono flex items-center gap-2">
+                        <span>{formatTimecode(item.duration)}</span>
+                        <span>•</span>
+                        <span>{formatFileSize(item.fileSize)}</span>
+                        <span>•</span>
+                        <span>{item.format}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isActive ? (
+                      <span className="flex items-center gap-1 text-3xs font-semibold px-1.5 py-0.5 rounded bg-d2-accent/20 text-d2-accent border border-d2-accent/40">
+                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        ACTIVE
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (item.filePath) {
+                            useAudioStore.getState().importFromPath(item.filePath, item.name)
+                          }
+                        }}
+                        className="text-3xs px-2 py-0.5 rounded bg-d2-surface border border-d2-border text-d2-textSubtle hover:text-white"
+                      >
+                        Set Active
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => removeTrack(item.id)}
+                      className="p-1 rounded text-d2-textSubtle hover:text-d2-danger hover:bg-d2-canvas transition-colors ml-1"
+                      title="Remove audio"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <div className="text-2xs font-medium text-white truncate max-w-[150px]">
-                    {item.name}
-                  </div>
-                  <div className="text-2xs text-d2-textSubtle flex items-center gap-2">
-                    {item.duration && <span>{item.duration}</span>}
-                    <span>{item.size}</span>
-                  </div>
+
+                {/* Metadata tags */}
+                <div className="flex items-center gap-1.5 text-3xs text-d2-textSubtle font-mono pt-1 border-t border-d2-borderSubtle">
+                  <span className="px-1 py-0.2 rounded bg-d2-canvas border border-d2-borderSubtle">
+                    {item.sampleRate} Hz
+                  </span>
+                  <span className="px-1 py-0.2 rounded bg-d2-canvas border border-d2-borderSubtle">
+                    {item.channels === 1 ? 'Mono' : 'Stereo'}
+                  </span>
                 </div>
               </div>
-
-              {item.active && (
-                <CheckCircle2 className="w-3.5 h-3.5 text-d2-accent shrink-0" />
-              )}
-            </div>
-          )
-        })}
+            )
+          })
+        )}
       </div>
     </div>
   )

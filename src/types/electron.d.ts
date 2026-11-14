@@ -1,3 +1,16 @@
+export interface OpenAudioResult {
+  canceled: boolean
+  filePath?: string
+  fileName?: string
+  fileSize?: number
+}
+
+export interface FileStatsResult {
+  size: number
+  name: string
+  extension: string
+}
+
 export interface ElectronAPI {
   // App info & diagnostics
   getVersion: () => Promise<string>
@@ -10,6 +23,12 @@ export interface ElectronAPI {
   close: () => Promise<void>
   isMaximized: () => Promise<boolean>
   onMaximizeChange: (callback: (isMaximized: boolean) => void) => () => void
+
+  // Media & Audio IPC
+  openAudioFileDialog: () => Promise<OpenAudioResult>
+  readAudioBuffer: (filePath: string) => Promise<Uint8Array>
+  getFileStats: (filePath: string) => Promise<FileStatsResult>
+  getMediaUrl: (filePath: string) => string
 }
 
 declare global {

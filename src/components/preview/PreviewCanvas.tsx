@@ -1,13 +1,13 @@
 import React, { useRef, useEffect } from 'react'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useCompositionStore } from '@/stores/compositionStore'
+import { AudioEngine } from '@/engine/audio/AudioEngine'
 
 export const PreviewCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const { aspectRatio, zoom, showSafeGuides, isPlaying, currentTime } =
-    usePreviewStore()
+  const { aspectRatio, zoom, showSafeGuides, isPlaying } = usePreviewStore()
   const { visualizer, background, text, effects } = useCompositionStore()
 
   // Native internal rendering dimensions
@@ -32,6 +32,7 @@ export const PreviewCanvas: React.FC = () => {
     if (!ctx) return
 
     let animId: number
+    const engine = AudioEngine.getInstance()
 
     const render = () => {
       const w = nativeWidth
@@ -42,6 +43,11 @@ export const PreviewCanvas: React.FC = () => {
         canvas.width = w
         canvas.height = h
       }
+
+      // Query real-time FFT audio frame
+      const audioFrame = engine.getLiveFrameData()
+      const rawFrequencies = audioFrame.normalizedFrequencies
+      const { subBass, bass } = audioFrame.bands
 
       ctx.clearRect(0, 0, w, h)
 
@@ -63,44 +69,53 @@ export const PreviewCanvas: React.FC = () => {
         ctx.fillRect(0, 0, w, h)
       }
 
-      // 2. Render Animated Visualizer
+      // 2. Render Audio-Reactive Visualizer
       ctx.save()
-      const t = currentTime * 4 // animation time parameter
       const centerX = w / 2 + (visualizer.positionX / 100) * w
       const centerY = h / 2 + (visualizer.positionY / 100) * h
 
+      // Beat Pulse reaction on scale driven by sub-bass
+      const beatScale =
+        effects.beatPulse > 0
+          ? 1 + (subBass * 0.4 + bass * 0.2) * (effects.beatPulse / 100)
+          : 1
+
       ctx.translate(centerX, centerY)
-      ctx.scale(visualizer.scale, visualizer.scale)
+      ctx.scale(visualizer.scale * beatScale, visualizer.scale * beatScale)
       ctx.rotate((visualizer.rotation * Math.PI) / 180)
       ctx.globalAlpha = visualizer.opacity
 
-      // Optional Glow
+      // Real audio-driven glow
       if (visualizer.glow > 0) {
         ctx.shadowColor = visualizer.primaryColor
-        ctx.shadowBlur = visualizer.glow
+        ctx.shadowBlur = visualizer.glow * (0.6 + bass * 0.8)
       }
 
-      if (visualizer.type === 'circular-spectrum' || visualizer.type === 'dual-rings') {
-        // Render Circular Spectrum
-        const radius = Math.min(w, h) * 0.18
-        const count = visualizer.barCount || 48
-        const step = (Math.PI * 2) / count
+      const barCount = visualizer.barCount || 48
+      const binStep = Math.max(1, Math.floor(rawFrequencies.length / barCount))
 
-        for (let i = 0; i < count; i++) {
-          const angle = i * step
-          // Simulated frequency amplitude
-          const amp =
-            Math.sin(i * 0.3 + t) * 0.5 +
-            Math.cos(i * 0.7 - t * 1.2) * 0.3 +
-            0.5
-          const barH = 20 + amp * 90 * visualizer.sensitivity
+      if (
+        visualizer.type === 'circular-spectrum' ||
+        visualizer.type === 'dual-rings'
+      ) {
+        // Render Circular Spectrum driven by real FFT bins
+        const radius = Math.min(w, h) * 0.18
+        const angleStep = (Math.PI * 2) / barCount
+
+        for (let i = 0; i < barCount; i++) {
+          const angle = i * angleStep
+          // Sample real audio bin magnitude
+          const binIndex = (i * binStep) % rawFrequencies.length
+          const mag = rawFrequencies[binIndex] || 0
+          const barH = 6 + mag * 130 * visualizer.sensitivity
 
           const xStart = Math.cos(angle) * radius
           const yStart = Math.sin(angle) * radius
           const xEnd = Math.cos(angle) * (radius + barH)
           const yEnd = Math.sin(angle) * (radius + barH)
 
-          ctx.strokeStyle = i % 2 === 0 ? visualizer.primaryColor : visualizer.accentColor
+          ctx.strokeStyle =
+            i % 2 === 0 ? visualizer.primaryColor : visualizer.accentColor
           ctx.lineWidth = visualizer.thickness
           ctx.beginPath()
           ctx.moveTo(xStart, yStart)
@@ -108,14 +123,17 @@ export const PreviewCanvas: React.FC = () => {
           ctx.stroke()
         }
 
-        // Center ring
+        // Reactive inner bass ring
         ctx.strokeStyle = visualizer.accentColor
-        ctx.lineWidth = 3
+        ctx.lineWidth = 2 + bass * 4
         ctx.beginPath()
         ctx.arc(0, 0, radius - 4, 0, Math.PI * 2)
         ctx.stroke()
-      } else if (visualizer.type === 'classic-waveform' || visualizer.type === 'radial-waveform') {
-        // Render Waveform Line
+      } else if (
+        visualizer.type === 'classic-waveform' ||
+        visualizer.type === 'radial-waveform'
+      ) {
+        // Render Linear Oscillograph Waveform
         const length = w * 0.7
         const points = 100
         ctx.strokeStyle = visualizer.primaryColor
@@ -124,33 +142,28 @@ export const PreviewCanvas: React.FC = () => {
 
         for (let i = 0; i < points; i++) {
           const x = -length / 2 + (i / points) * length
-          const amp =
-            Math.sin((i * 0.2) + t * 2) *
-            Math.cos((i * 0.05) - t) *
-            50 *
-            visualizer.sensitivity
-          if (i === 0) ctx.moveTo(x, amp)
-          else ctx.lineTo(x, amp)
+          const binIdx = Math.floor((i / points) * 128)
+          const mag = rawFrequencies[binIdx] || 0
+          const y = (i % 2 === 0 ? 1 : -1) * mag * 80 * visualizer.sensitivity
+          if (i === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
         }
         ctx.stroke()
       } else {
-        // Default: Spectrum Bars
-        const count = visualizer.barCount || 48
-        const totalW = count * (visualizer.thickness + visualizer.spacing)
+        // Default: Real Audio Frequency Spectrum Bars
+        const totalW = barCount * (visualizer.thickness + visualizer.spacing)
         const startX = -totalW / 2
 
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; i < barCount; i++) {
           const x = startX + i * (visualizer.thickness + visualizer.spacing)
-          // Frequency shape: higher in bass (left), tapering to treble (right)
-          const bassBoost = Math.max(0, 1 - i / count) * 0.8
-          const noise =
-            Math.sin(i * 0.4 + t) * 0.3 +
-            Math.cos(i * 0.8 - t * 1.5) * 0.4 +
-            bassBoost +
-            0.4
+          const binIndex = Math.min(
+            rawFrequencies.length - 1,
+            Math.floor(i * binStep * 0.7) // weight toward bass/mid
+          )
+          const magnitude = rawFrequencies[binIndex] || 0
           const barHeight = Math.max(
-            8,
-            noise * 140 * visualizer.sensitivity
+            4,
+            magnitude * 220 * visualizer.sensitivity
           )
 
           const barGrad = ctx.createLinearGradient(0, 0, 0, -barHeight)
@@ -181,7 +194,7 @@ export const PreviewCanvas: React.FC = () => {
       // Song Title
       ctx.font = `bold ${text.fontSize}px ${text.fontFamily}, sans-serif`
       ctx.fillStyle = text.color
-      ctx.shadowColor = 'rgba(0,0,0,0.8)'
+      ctx.shadowColor = 'rgba(0,0,0,0.85)'
       ctx.shadowBlur = 12
       ctx.fillText(text.songTitle, textX, textY - 24)
 
@@ -199,7 +212,7 @@ export const PreviewCanvas: React.FC = () => {
 
       ctx.restore()
 
-      // 4. Render Post Effects (Vignette)
+      // 4. Render Post Effects (Vignette & Atmospheric Glow)
       if (effects.vignette > 0) {
         const vigGrad = ctx.createRadialGradient(
           w / 2,
@@ -250,16 +263,10 @@ export const PreviewCanvas: React.FC = () => {
         ctx.restore()
       }
 
-      if (isPlaying) {
-        animId = requestAnimationFrame(render)
-      }
-    }
-
-    render()
-
-    if (isPlaying) {
       animId = requestAnimationFrame(render)
     }
+
+    animId = requestAnimationFrame(render)
 
     return () => {
       if (animId) cancelAnimationFrame(animId)
@@ -269,7 +276,6 @@ export const PreviewCanvas: React.FC = () => {
     nativeHeight,
     aspectRatio,
     isPlaying,
-    currentTime,
     visualizer,
     background,
     text,
@@ -285,7 +291,6 @@ export const PreviewCanvas: React.FC = () => {
         height: `${nativeHeight * zoom * 0.5}px`,
       }
     }
-    // Fit Mode
     const aspectStyle =
       aspectRatio === '9:16'
         ? 'h-[85%] aspect-[9/16]'

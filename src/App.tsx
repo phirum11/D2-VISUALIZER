@@ -1,11 +1,17 @@
 import React, { useEffect } from 'react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { useAppStore } from '@/stores/appStore'
+import { useAudioStore } from '@/stores/audioStore'
 
 export const App: React.FC = () => {
   const { setAppInfo } = useAppStore()
 
   useEffect(() => {
+    // Expose stores for diagnostics and automated smoke testing
+    if (typeof window !== 'undefined') {
+      ;(window as unknown as { __D2_AUDIO_STORE__: typeof useAudioStore }).__D2_AUDIO_STORE__ = useAudioStore
+    }
+
     async function initSystem() {
       if (typeof window !== 'undefined' && window.electronAPI) {
         try {

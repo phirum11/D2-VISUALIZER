@@ -1,7 +1,27 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, protocol, net } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
+import { pathToFileURL } from 'node:url'
 import { registerIpcHandlers } from './ipc/windowIpc'
+import { registerMediaIpcHandlers } from './ipc/mediaIpc'
+
+// Enable media playback without requiring initial user interaction (standard for desktop creative editors)
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
+
+// Register privileged custom media protocol before app is ready
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'd2-media',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      corsEnabled: true,
+      bypassCSP: true,
+    },
+  },
+])
 
 const appRoot = path.join(__dirname, '..')
 export const MAIN_DIST = path.join(appRoot, 'dist-electron')
@@ -43,6 +63,7 @@ function createWindow(): void {
 
   // Register secure IPC handlers
   registerIpcHandlers(mainWindow)
+  registerMediaIpcHandlers(mainWindow)
 
   // Prevent opening external URLs inside Electron window
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -50,55 +71,101 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  // Forward renderer console to Node terminal
+  mainWindow.webContents.on('console-message', (_event, _level, message) => {
+    console.log('[RENDERER CONSOLE]', message)
+  })
+
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
   })
 
-  // Verification & Screenshot hook
-  if (process.env.TEST_MODE === '1' || process.env.SCREENSHOT_MODE === '1') {
+  // Phase 3 Automated Verification & Screenshot hook
+  if (process.env.TEST_PHASE3 === '1') {
     mainWindow.webContents.on('did-finish-load', async () => {
       try {
-        console.log('[TEST] WebContents finished load.')
-        // Wait 1.2s for React and Canvas to render
+        console.log('[PHASE 3 TEST] WebContents finished load.')
         await new Promise((r) => setTimeout(r, 1200))
+
+        const testAudioPath = path.join(appRoot, 'resources', 'test_audio_track.wav')
+        console.log('[PHASE 3 TEST] Importing test audio:', testAudioPath)
 
         const testResult = await mainWindow!.webContents.executeJavaScript(`
           (async () => {
-            const hasAPI = typeof window.electronAPI !== 'undefined';
-            const ping = hasAPI ? await window.electronAPI.ping() : null;
-            const titlePresent = !!document.querySelector('header');
-            const canvasPresent = !!document.querySelector('canvas');
-            const tracksPresent = document.querySelectorAll('.flex.h-11').length;
-            return { hasAPI, ping, titlePresent, canvasPresent, tracksPresent };
+            const store = window.__D2_AUDIO_STORE__;
+            if (!store) return { success: false, reason: 'store not found' };
+
+            const success = await store.getState().importFromPath(${JSON.stringify(testAudioPath)}, 'Test Beat Track 128BPM.wav');
+            const state = store.getState();
+            const track = state.currentTrack;
+            const hasWaveform = !!state.waveform && state.waveform.points.length > 0;
+
+            // Start real playback
+            await store.getState().play();
+
+            // Wait 1.5 seconds while playing
+            await new Promise(r => setTimeout(r, 1500));
+
+            const curTime = store.getState().currentTime;
+            const statusAfterPlay = store.getState().status;
+
+            // Open Live Audio Monitor
+            store.getState().setAudioMonitorOpen(true);
+            await new Promise(r => setTimeout(r, 600));
+
+            return {
+              success,
+              trackName: track ? track.name : null,
+              duration: track ? track.duration : 0,
+              sampleRate: track ? track.sampleRate : 0,
+              channels: track ? track.channels : 0,
+              hasWaveform,
+              waveformPoints: state.waveform ? state.waveform.points.length : 0,
+              statusAfterPlay,
+              curTime,
+            };
           })()
         `)
-        console.log('[TEST RESULT]', JSON.stringify(testResult, null, 2))
 
-        if (process.env.SCREENSHOT_MODE === '1') {
-          const image = await mainWindow!.webContents.capturePage()
-          const buffer = image.toPNG()
-          const localPath = path.join(appRoot, 'd2_visualizer_phase2_preview.png')
-          fs.writeFileSync(localPath, buffer)
-          console.log('[SCREENSHOT] Saved local screenshot to:', localPath)
+        console.log('[PHASE 3 TEST RESULT]', JSON.stringify(testResult, null, 2))
 
-          // Also copy to artifact dir for direct embedding
-          const artifactDir = 'C:\\Users\\User\\.gemini\\antigravity\\brain\\9abdc11c-922d-4fcf-a77b-2639ba067298'
-          if (fs.existsSync(artifactDir)) {
-            const artifactPath = path.join(artifactDir, 'd2_visualizer_phase2_preview.png')
-            fs.writeFileSync(artifactPath, buffer)
-            console.log('[SCREENSHOT] Saved artifact screenshot to:', artifactPath)
-          }
+        // Capture live screenshot with monitor open
+        const imageWithMonitor = await mainWindow!.webContents.capturePage()
+        const bufferWithMonitor = imageWithMonitor.toPNG()
+        fs.writeFileSync(path.join(appRoot, 'd2_visualizer_phase3_preview.png'), bufferWithMonitor)
+
+        const artifactDir = 'C:\\Users\\User\\.gemini\\antigravity\\brain\\9abdc11c-922d-4fcf-a77b-2639ba067298'
+        if (fs.existsSync(artifactDir)) {
+          fs.writeFileSync(path.join(artifactDir, 'd2_visualizer_phase3_preview.png'), bufferWithMonitor)
         }
 
-        if (testResult.hasAPI && testResult.titlePresent && testResult.canvasPresent) {
-          console.log('[TEST] SUCCESS: Professional Editor UI verified!')
+        // Close monitor to capture full editor view
+        await mainWindow!.webContents.executeJavaScript(`
+          window.__D2_AUDIO_STORE__.getState().setAudioMonitorOpen(false);
+        `)
+        await new Promise(r => setTimeout(r, 600))
+
+        const imageWorkspace = await mainWindow!.webContents.capturePage()
+        const bufferWorkspace = imageWorkspace.toPNG()
+        fs.writeFileSync(path.join(appRoot, 'd2_visualizer_phase3_workspace.png'), bufferWorkspace)
+        if (fs.existsSync(artifactDir)) {
+          fs.writeFileSync(path.join(artifactDir, 'd2_visualizer_phase3_workspace.png'), bufferWorkspace)
+        }
+        console.log('[SCREENSHOT] Saved both preview & workspace screenshots!')
+
+        if (
+          testResult.success &&
+          testResult.hasWaveform &&
+          testResult.curTime > 0
+        ) {
+          console.log('[PHASE 3 TEST] SUCCESS: Real audio imported, decoded, waveform generated, and played!')
           setTimeout(() => app.quit(), 500)
         } else {
-          console.error('[TEST] FAILED: Missing essential UI components', testResult)
+          console.error('[PHASE 3 TEST] FAILED: Audio test assertion failure', testResult)
           process.exit(1)
         }
       } catch (err) {
-        console.error('[TEST] ERROR executing test script:', err)
+        console.error('[PHASE 3 TEST] ERROR during test execution:', err)
         process.exit(1)
       }
     })
@@ -123,7 +190,20 @@ if (!gotTheLock) {
     }
   })
 
-  app.whenReady().then(createWindow)
+  app.whenReady().then(() => {
+    protocol.handle('d2-media', (request) => {
+      try {
+        const url = request.url.replace(/^d2-media:\/\/(local\/)?/, '')
+        const decodedPath = decodeURIComponent(url)
+        return net.fetch(pathToFileURL(decodedPath).toString())
+      } catch (err) {
+        console.error('[PROTOCOL] Failed to stream d2-media file:', err)
+        return new Response('File not found', { status: 404 })
+      }
+    })
+
+    createWindow()
+  })
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
