@@ -2,6 +2,8 @@ import React, { useRef, useEffect } from 'react'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useCompositionStore } from '@/stores/compositionStore'
 import { AudioEngine } from '@/engine/audio/AudioEngine'
+import { VisualizerRegistry } from '@/engine/visualizers/VisualizerRegistry'
+import { VisualizerRenderContext } from '@/engine/visualizers/types'
 
 export const PreviewCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -46,8 +48,6 @@ export const PreviewCanvas: React.FC = () => {
 
       // Query real-time FFT audio frame
       const audioFrame = engine.getLiveFrameData()
-      const rawFrequencies = audioFrame.normalizedFrequencies
-      const { subBass, bass } = audioFrame.bands
 
       ctx.clearRect(0, 0, w, h)
 
@@ -69,113 +69,23 @@ export const PreviewCanvas: React.FC = () => {
         ctx.fillRect(0, 0, w, h)
       }
 
-      // 2. Render Audio-Reactive Visualizer
-      ctx.save()
-      const centerX = w / 2 + (visualizer.positionX / 100) * w
-      const centerY = h / 2 + (visualizer.positionY / 100) * h
+      // 2. Render Audio-Reactive Visualizer via Modular Engine Plugin
+      const registry = VisualizerRegistry.getInstance()
+      const activeVisualizer = registry.setActiveVisualizer(visualizer.type)
 
-      // Beat Pulse reaction on scale driven by sub-bass
-      const beatScale =
-        effects.beatPulse > 0
-          ? 1 + (subBass * 0.4 + bass * 0.2) * (effects.beatPulse / 100)
-          : 1
-
-      ctx.translate(centerX, centerY)
-      ctx.scale(visualizer.scale * beatScale, visualizer.scale * beatScale)
-      ctx.rotate((visualizer.rotation * Math.PI) / 180)
-      ctx.globalAlpha = visualizer.opacity
-
-      // Real audio-driven glow
-      if (visualizer.glow > 0) {
-        ctx.shadowColor = visualizer.primaryColor
-        ctx.shadowBlur = visualizer.glow * (0.6 + bass * 0.8)
+      const renderContext: VisualizerRenderContext = {
+        canvas,
+        ctx2d: ctx,
+        audioFrame,
+        config: visualizer,
+        effects,
+        time: performance.now() / 1000,
+        width: w,
+        height: h,
+        dpr: window.devicePixelRatio || 1,
       }
 
-      const barCount = visualizer.barCount || 48
-      const binStep = Math.max(1, Math.floor(rawFrequencies.length / barCount))
-
-      if (
-        visualizer.type === 'circular-spectrum' ||
-        visualizer.type === 'dual-rings'
-      ) {
-        // Render Circular Spectrum driven by real FFT bins
-        const radius = Math.min(w, h) * 0.18
-        const angleStep = (Math.PI * 2) / barCount
-
-        for (let i = 0; i < barCount; i++) {
-          const angle = i * angleStep
-          // Sample real audio bin magnitude
-          const binIndex = (i * binStep) % rawFrequencies.length
-          const mag = rawFrequencies[binIndex] || 0
-          const barH = 6 + mag * 130 * visualizer.sensitivity
-
-          const xStart = Math.cos(angle) * radius
-          const yStart = Math.sin(angle) * radius
-          const xEnd = Math.cos(angle) * (radius + barH)
-          const yEnd = Math.sin(angle) * (radius + barH)
-
-          ctx.strokeStyle =
-            i % 2 === 0 ? visualizer.primaryColor : visualizer.accentColor
-          ctx.lineWidth = visualizer.thickness
-          ctx.beginPath()
-          ctx.moveTo(xStart, yStart)
-          ctx.lineTo(xEnd, yEnd)
-          ctx.stroke()
-        }
-
-        // Reactive inner bass ring
-        ctx.strokeStyle = visualizer.accentColor
-        ctx.lineWidth = 2 + bass * 4
-        ctx.beginPath()
-        ctx.arc(0, 0, radius - 4, 0, Math.PI * 2)
-        ctx.stroke()
-      } else if (
-        visualizer.type === 'classic-waveform' ||
-        visualizer.type === 'radial-waveform'
-      ) {
-        // Render Linear Oscillograph Waveform
-        const length = w * 0.7
-        const points = 100
-        ctx.strokeStyle = visualizer.primaryColor
-        ctx.lineWidth = visualizer.thickness
-        ctx.beginPath()
-
-        for (let i = 0; i < points; i++) {
-          const x = -length / 2 + (i / points) * length
-          const binIdx = Math.floor((i / points) * 128)
-          const mag = rawFrequencies[binIdx] || 0
-          const y = (i % 2 === 0 ? 1 : -1) * mag * 80 * visualizer.sensitivity
-          if (i === 0) ctx.moveTo(x, y)
-          else ctx.lineTo(x, y)
-        }
-        ctx.stroke()
-      } else {
-        // Default: Real Audio Frequency Spectrum Bars
-        const totalW = barCount * (visualizer.thickness + visualizer.spacing)
-        const startX = -totalW / 2
-
-        for (let i = 0; i < barCount; i++) {
-          const x = startX + i * (visualizer.thickness + visualizer.spacing)
-          const binIndex = Math.min(
-            rawFrequencies.length - 1,
-            Math.floor(i * binStep * 0.7) // weight toward bass/mid
-          )
-          const magnitude = rawFrequencies[binIndex] || 0
-          const barHeight = Math.max(
-            4,
-            magnitude * 220 * visualizer.sensitivity
-          )
-
-          const barGrad = ctx.createLinearGradient(0, 0, 0, -barHeight)
-          barGrad.addColorStop(0, visualizer.primaryColor)
-          barGrad.addColorStop(1, visualizer.accentColor)
-
-          ctx.fillStyle = barGrad
-          ctx.fillRect(x, -barHeight / 2, visualizer.thickness, barHeight)
-        }
-      }
-
-      ctx.restore()
+      activeVisualizer.render(renderContext)
 
       // 3. Render Typography & Branding
       ctx.save()

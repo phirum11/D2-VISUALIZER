@@ -10,8 +10,11 @@ export interface AudioBands {
 export interface AudioFrameData {
   rawFrequencies: Uint8Array
   normalizedFrequencies: Float32Array
+  timeDomainData: Uint8Array
+  normalizedTimeDomain: Float32Array
   bands: AudioBands
   overallEnergy: number
+  rms: number
   bassEnergy: number
   midEnergy: number
   trebleEnergy: number
@@ -31,6 +34,8 @@ export class FrequencyExtractor {
   private fftSize: number
   private byteFrequencyData: Uint8Array<ArrayBuffer>
   private normalizedBuffer: Float32Array<ArrayBuffer>
+  private byteTimeDomainData: Uint8Array<ArrayBuffer>
+  private normalizedTimeDomain: Float32Array<ArrayBuffer>
 
   // Smoothed band state (for EMA smoothing)
   private smoothedBands: AudioBands = {
@@ -57,6 +62,8 @@ export class FrequencyExtractor {
     const binCount = this.analyser.frequencyBinCount
     this.byteFrequencyData = new Uint8Array(new ArrayBuffer(binCount))
     this.normalizedBuffer = new Float32Array(new ArrayBuffer(binCount * 4))
+    this.byteTimeDomainData = new Uint8Array(new ArrayBuffer(binCount))
+    this.normalizedTimeDomain = new Float32Array(new ArrayBuffer(binCount * 4))
 
     if (config?.sensitivity) this.sensitivity = config.sensitivity
     if (config?.smoothing) this.smoothing = config.smoothing
@@ -135,11 +142,24 @@ export class FrequencyExtractor {
     const midEnergy = (this.smoothedBands.lowMid * 0.5 + this.smoothedBands.mid * 0.5)
     const trebleEnergy = (this.smoothedBands.highMid * 0.5 + this.smoothedBands.treble * 0.5)
 
+    // Capture time-domain waveform data and compute real audio RMS
+    this.analyser.getByteTimeDomainData(this.byteTimeDomainData)
+    let sumSquares = 0
+    for (let i = 0; i < binCount; i++) {
+      const sample = (this.byteTimeDomainData[i] - 128) / 128.0
+      this.normalizedTimeDomain[i] = sample
+      sumSquares += sample * sample
+    }
+    const rms = Math.min(1.0, Math.sqrt(sumSquares / binCount) * this.sensitivity * 1.5)
+
     return {
       rawFrequencies: this.byteFrequencyData,
       normalizedFrequencies: this.normalizedBuffer,
+      timeDomainData: this.byteTimeDomainData,
+      normalizedTimeDomain: this.normalizedTimeDomain,
       bands: { ...this.smoothedBands },
       overallEnergy,
+      rms,
       bassEnergy,
       midEnergy,
       trebleEnergy,
@@ -157,5 +177,7 @@ export class FrequencyExtractor {
     }
     this.byteFrequencyData.fill(0)
     this.normalizedBuffer.fill(0)
+    this.byteTimeDomainData.fill(128)
+    this.normalizedTimeDomain.fill(0)
   }
 }
