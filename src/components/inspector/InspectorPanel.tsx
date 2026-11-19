@@ -1,9 +1,8 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import {
   Sliders,
   Move,
   Palette,
-  Sparkles,
   PanelRightClose,
   PanelRightOpen,
   Activity,
@@ -25,9 +24,33 @@ export const InspectorPanel: React.FC = () => {
     isInspectorCollapsed,
     toggleInspector,
     inspectorWidth,
+    setInspectorWidth,
     selectedLayer,
     setSelectedLayer,
   } = useUIStore()
+  const isDraggingRef = useRef(false)
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingRef.current = true
+    const startX = e.clientX
+    const startW = inspectorWidth
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current) return
+      const deltaX = startX - ev.clientX
+      setInspectorWidth(startW + deltaX)
+    }
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
 
   const {
     visualizer,
@@ -75,10 +98,17 @@ export const InspectorPanel: React.FC = () => {
   }
 
   return (
-    <aside
-      style={{ width: `${inspectorWidth}px` }}
-      className="h-full bg-d2-surface border-l border-d2-border flex flex-col select-none z-20 shrink-0 overflow-hidden"
-    >
+    <div className="flex h-full select-none shrink-0 z-20 border-l border-d2-border relative">
+      {/* Vertical Resize Splitter */}
+      <div
+        onMouseDown={handleResizeMouseDown}
+        className="w-1 h-full cursor-col-resize z-30 bg-d2-border hover:bg-d2-accent active:bg-d2-accent transition-colors"
+        title="Drag to resize inspector"
+      />
+      <aside
+        style={{ width: `${inspectorWidth}px` }}
+        className="h-full bg-d2-surface flex flex-col select-none overflow-hidden"
+      >
       {/* Header */}
       <div className="h-10 px-3 border-b border-d2-border flex items-center justify-between bg-d2-surfaceElevated/30">
         <div className="flex items-center gap-2">
@@ -584,15 +614,7 @@ export const InspectorPanel: React.FC = () => {
           </CollapsibleSection>
         )}
       </div>
-
-      {/* Footer Info */}
-      <div className="p-2 border-t border-d2-border bg-d2-surfaceElevated/20 text-3xs text-d2-textSubtle flex items-center justify-between font-mono">
-        <span>Target: {selectedLayer.toUpperCase()}</span>
-        <span className="flex items-center gap-1 text-d2-accent">
-          <Sparkles className="w-2.5 h-2.5" />
-          Live Synced
-        </span>
-      </div>
     </aside>
+  </div>
   )
 }

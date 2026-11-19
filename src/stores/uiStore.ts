@@ -43,7 +43,7 @@ export const useUIStore = create<UIState>((set) => ({
   isTimelineCollapsed: false,
   sidebarWidth: 280,
   inspectorWidth: 300,
-  timelineHeight: 280,
+  timelineHeight: 210,
   selectedLayer: 'visualizer',
   settingsOpen: false,
   projectMenuOpen: false,

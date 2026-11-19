@@ -8,9 +8,21 @@ export const PreviewCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const { aspectRatio, zoom, showSafeGuides, isPlaying, previewQuality } = usePreviewStore()
-  const { visualizer, background, text, effects, ambientParticles, cinematicMotion, layers } =
-    useCompositionStore()
+  const { aspectRatio, zoom, showSafeGuides, isPlaying, previewQuality, isFullscreenPreview, toggleFullscreenPreview, setIsFullscreenPreview } = usePreviewStore()
+
+  // Fullscreen keyboard listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreenPreview) {
+        setIsFullscreenPreview(false)
+      } else if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        toggleFullscreenPreview()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isFullscreenPreview, setIsFullscreenPreview, toggleFullscreenPreview])
 
   // Native internal rendering dimensions
   const getNativeDimensions = () => {
@@ -19,6 +31,10 @@ export const PreviewCanvas: React.FC = () => {
         return { width: 1080, height: 1920 }
       case '1:1':
         return { width: 1080, height: 1080 }
+      case '4:5':
+        return { width: 1080, height: 1350 }
+      case '21:9':
+        return { width: 2560, height: 1080 }
       case '16:9':
       default:
         return { width: 1920, height: 1080 }
@@ -93,18 +109,14 @@ export const PreviewCanvas: React.FC = () => {
     aspectRatio,
     isPlaying,
     previewQuality,
-    visualizer,
-    background,
-    text,
-    effects,
-    ambientParticles,
-    cinematicMotion,
-    layers,
     showSafeGuides,
   ])
 
   // Compute CSS display scaling
   const getContainerStyle = () => {
+    if (isFullscreenPreview) {
+      return { className: 'w-full h-full max-w-full max-h-full' }
+    }
     if (zoom > 0) {
       return {
         width: `${nativeWidth * zoom * 0.5}px`,
@@ -113,10 +125,14 @@ export const PreviewCanvas: React.FC = () => {
     }
     const aspectStyle =
       aspectRatio === '9:16'
-        ? 'h-[85%] aspect-[9/16]'
+        ? 'h-full max-h-[92%] aspect-[9/16]'
         : aspectRatio === '1:1'
-        ? 'h-[85%] aspect-square'
-        : 'w-[90%] aspect-video'
+        ? 'h-full max-h-[92%] aspect-square'
+        : aspectRatio === '4:5'
+        ? 'h-full max-h-[92%] aspect-[4/5]'
+        : aspectRatio === '21:9'
+        ? 'w-full max-w-[94%] aspect-[21/9]'
+        : 'max-w-[94%] max-h-[92%] aspect-video'
     return { className: aspectStyle }
   }
 
@@ -125,19 +141,40 @@ export const PreviewCanvas: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="flex-1 w-full h-full bg-d2-canvas flex items-center justify-center p-6 overflow-hidden relative"
-      style={{
-        backgroundImage:
-          'radial-gradient(circle, #1a202c 1px, transparent 1px)',
-        backgroundSize: '24px 24px',
-      }}
+      className={`${
+        isFullscreenPreview
+          ? 'fixed inset-0 z-50 bg-black p-0'
+          : 'flex-1 w-full h-full bg-[#0a0c10] p-4 relative'
+      } flex items-center justify-center overflow-hidden transition-all`}
+      style={
+        isFullscreenPreview
+          ? {}
+          : {
+              backgroundImage:
+                'radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+            }
+      }
     >
+      {/* Floating Exit Button for Fullscreen */}
+      {isFullscreenPreview && (
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            onClick={() => setIsFullscreenPreview(false)}
+            className="px-3 py-1.5 rounded-full bg-black/80 hover:bg-black text-white/80 hover:text-white border border-white/20 text-xs font-mono backdrop-blur-md transition-all shadow-xl flex items-center gap-2"
+          >
+            <span>Exit Fullscreen</span>
+            <span className="text-3xs px-1.5 py-0.5 rounded bg-white/20 text-white font-bold">ESC</span>
+          </button>
+        </div>
+      )}
+
       <div
-        className={`relative shadow-2xl rounded border border-d2-border overflow-hidden flex items-center justify-center bg-black transition-all ${
+        className={`relative shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.08)] rounded-lg overflow-hidden flex items-center justify-center bg-black transition-all ${
           containerStyle.className || ''
         }`}
         style={
-          zoom > 0
+          !isFullscreenPreview && zoom > 0
             ? { width: containerStyle.width, height: containerStyle.height }
             : {}
         }
@@ -146,11 +183,6 @@ export const PreviewCanvas: React.FC = () => {
           ref={canvasRef}
           className="w-full h-full object-contain pointer-events-none"
         />
-
-        {/* Aspect Ratio Badge Overlay */}
-        <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm border border-white/10 text-2xs font-mono text-white/80 pointer-events-none">
-          {aspectRatio} • {nativeWidth}×{nativeHeight}
-        </div>
       </div>
     </div>
   )

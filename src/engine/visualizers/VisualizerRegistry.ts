@@ -10,6 +10,31 @@ import { ThreeFrequencyLandscapeVisualizer } from './styles/ThreeFrequencyLandsc
 import { AudioRadarVisualizer } from './styles/AudioRadarVisualizer'
 import { ParticleVisualizer } from './styles/ParticleVisualizer'
 
+// 20 New Professional Audio-Reactive Visualizers (v0.2.0)
+import { PremiumSpectrumBarsVisualizer } from './styles/PremiumSpectrumBarsVisualizer'
+import { GradientSpectrumVisualizer } from './styles/GradientSpectrumVisualizer'
+import { FloatingSpectrumVisualizer } from './styles/FloatingSpectrumVisualizer'
+import { MirroredFrequencyVisualizer } from './styles/MirroredFrequencyVisualizer'
+import { EqualizerColumnsVisualizer } from './styles/EqualizerColumnsVisualizer'
+import { NeonWaveformVisualizer } from './styles/NeonWaveformVisualizer'
+import { DualAudioWaveformVisualizer } from './styles/DualAudioWaveformVisualizer'
+import { SmoothOscilloscopeVisualizer } from './styles/SmoothOscilloscopeVisualizer'
+import { EnergyWaveformVisualizer } from './styles/EnergyWaveformVisualizer'
+import { MinimalLineWaveformVisualizer } from './styles/MinimalLineWaveformVisualizer'
+import { DualRingSpectrumVisualizer } from './styles/DualRingSpectrumVisualizer'
+import { RadialEnergyPulseVisualizer } from './styles/RadialEnergyPulseVisualizer'
+import { CircularFrequencyBarsVisualizer } from './styles/CircularFrequencyBarsVisualizer'
+import { OrbitSpectrumVisualizer } from './styles/OrbitSpectrumVisualizer'
+import { RotatingAudioRingVisualizer } from './styles/RotatingAudioRingVisualizer'
+import { ParticleAudioFieldVisualizer } from './styles/ParticleAudioFieldVisualizer'
+import { CosmicFrequencyVisualizer } from './styles/CosmicFrequencyVisualizer'
+import { LaserAudioLinesVisualizer } from './styles/LaserAudioLinesVisualizer'
+import { DigitalGridSpectrumVisualizer } from './styles/DigitalGridSpectrumVisualizer'
+import { LiquidEnergyVisualizer } from './styles/LiquidEnergyVisualizer'
+import { AuroraWaveVisualizer } from './styles/AuroraWaveVisualizer'
+import { HyperTunnelVisualizer } from './styles/HyperTunnelVisualizer'
+import { NeonPulseRingsVisualizer } from './styles/NeonPulseRingsVisualizer'
+
 export interface VisualizerInfo {
   id: string
   name: string
@@ -36,6 +61,7 @@ export class VisualizerRegistry {
   }
 
   private registerDefaultPlugins(): void {
+    // Original styles
     this.registerPlugin(new SpectrumBarsVisualizer())
     this.registerPlugin(new CircularSpectrumVisualizer())
     this.registerPlugin(new RadialWaveformVisualizer())
@@ -46,6 +72,31 @@ export class VisualizerRegistry {
     this.registerPlugin(new ThreeFrequencyLandscapeVisualizer())
     this.registerPlugin(new AudioRadarVisualizer())
     this.registerPlugin(new ParticleVisualizer())
+
+    // 20 New v0.2.0 Styles
+    this.registerPlugin(new PremiumSpectrumBarsVisualizer())
+    this.registerPlugin(new GradientSpectrumVisualizer())
+    this.registerPlugin(new FloatingSpectrumVisualizer())
+    this.registerPlugin(new MirroredFrequencyVisualizer())
+    this.registerPlugin(new EqualizerColumnsVisualizer())
+    this.registerPlugin(new NeonWaveformVisualizer())
+    this.registerPlugin(new DualAudioWaveformVisualizer())
+    this.registerPlugin(new SmoothOscilloscopeVisualizer())
+    this.registerPlugin(new EnergyWaveformVisualizer())
+    this.registerPlugin(new MinimalLineWaveformVisualizer())
+    this.registerPlugin(new DualRingSpectrumVisualizer())
+    this.registerPlugin(new RadialEnergyPulseVisualizer())
+    this.registerPlugin(new CircularFrequencyBarsVisualizer())
+    this.registerPlugin(new OrbitSpectrumVisualizer())
+    this.registerPlugin(new RotatingAudioRingVisualizer())
+    this.registerPlugin(new ParticleAudioFieldVisualizer())
+    this.registerPlugin(new CosmicFrequencyVisualizer())
+    this.registerPlugin(new LaserAudioLinesVisualizer())
+    this.registerPlugin(new DigitalGridSpectrumVisualizer())
+    this.registerPlugin(new LiquidEnergyVisualizer())
+    this.registerPlugin(new AuroraWaveVisualizer())
+    this.registerPlugin(new HyperTunnelVisualizer())
+    this.registerPlugin(new NeonPulseRingsVisualizer())
   }
 
   /**

@@ -4,8 +4,8 @@ import { VisualizerRenderContext } from '../types'
 export class RadialWaveformVisualizer extends Base2DVisualizer {
   public readonly id = 'radial-waveform'
   public readonly name = 'Radial Waveform'
-  public readonly category = 'Circular'
-  public readonly description = 'Continuous circular vector waveform oscilloscope loop'
+  public readonly category = 'Radial'
+  public readonly description = 'Continuous circular vector waveform oscilloscope with smooth harmonic curves'
 
   private rotationAngle: number = 0
 
@@ -27,23 +27,29 @@ export class RadialWaveformVisualizer extends Base2DVisualizer {
     const angleStep = (Math.PI * 2) / points
     const amplitude = Math.min(width, height) * 0.12 * config.sensitivity
 
-    // 1. Draw Closed Waveform Path
-    ctx2d.beginPath()
-    for (let i = 0; i <= points; i++) {
-      const idx = i % points
-      const sampleIdx = Math.floor((idx / points) * timeDomain.length)
+    // Calculate smooth coordinate points
+    const pts: { x: number; y: number }[] = []
+    for (let i = 0; i < points; i++) {
+      const sampleIdx = Math.floor((i / points) * timeDomain.length)
       const sample = timeDomain[sampleIdx] || 0
       const radius = baseRadius + sample * amplitude
 
-      const angle = idx * angleStep + this.rotationAngle
-      const x = Math.cos(angle) * radius
-      const y = Math.sin(angle) * radius
+      const angle = i * angleStep + this.rotationAngle
+      pts.push({
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+      })
+    }
 
-      if (i === 0) {
-        ctx2d.moveTo(x, y)
-      } else {
-        ctx2d.lineTo(x, y)
-      }
+    // 1. Draw Smooth Curve Path
+    ctx2d.beginPath()
+    ctx2d.moveTo((pts[0].x + pts[points - 1].x) / 2, (pts[0].y + pts[points - 1].y) / 2)
+
+    for (let i = 0; i < points; i++) {
+      const next = pts[(i + 1) % points]
+      const xc = (pts[i].x + next.x) / 2
+      const yc = (pts[i].y + next.y) / 2
+      ctx2d.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc)
     }
     ctx2d.closePath()
 
@@ -58,27 +64,23 @@ export class RadialWaveformVisualizer extends Base2DVisualizer {
     ctx2d.lineJoin = 'round'
     ctx2d.stroke()
 
-    // 2. Translucent fill for neon glow center
-    ctx2d.fillStyle = `${config.primaryColor}15`
+    // 2. Translucent neon glow center fill
+    ctx2d.fillStyle = `${config.primaryColor}18`
     ctx2d.fill()
 
-    // 3. Second harmonic wave (accent layer)
+    // 3. Second counter-rotating harmonic wave (accent layer)
     ctx2d.beginPath()
-    for (let i = 0; i <= points; i++) {
-      const idx = i % points
-      const sampleIdx = Math.floor(((idx + points / 2) % points / points) * timeDomain.length)
+    for (let i = 0; i < points; i++) {
+      const sampleIdx = Math.floor(((i + points / 2) % points / points) * timeDomain.length)
       const sample = timeDomain[sampleIdx] || 0
-      const radius = Math.max(10, baseRadius * 0.85 + sample * amplitude * 0.6)
+      const radius = Math.max(10, baseRadius * 0.85 + sample * amplitude * 0.55)
 
-      const angle = -(idx * angleStep) - this.rotationAngle
+      const angle = -(i * angleStep) - this.rotationAngle
       const x = Math.cos(angle) * radius
       const y = Math.sin(angle) * radius
 
-      if (i === 0) {
-        ctx2d.moveTo(x, y)
-      } else {
-        ctx2d.lineTo(x, y)
-      }
+      if (i === 0) ctx2d.moveTo(x, y)
+      else ctx2d.lineTo(x, y)
     }
     ctx2d.closePath()
 

@@ -16,7 +16,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  version: '0.1.0',
+  version: '0.2.0',
   platform: 'win32',
   ipcConnected: false,
   isMaximized: false,

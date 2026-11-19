@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { RotateCcw } from 'lucide-react'
 
 interface SliderProps {
@@ -24,25 +24,84 @@ export const Slider: React.FC<SliderProps> = ({
   onChange,
   onReset,
 }) => {
+  const [isEditing, setIsEditing] = useState(false)
+  const [tempValue, setTempValue] = useState(value.toString())
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setTempValue(step < 1 ? value.toFixed(2) : value.toString())
+  }, [value, step])
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditing])
+
+  const handleCommit = () => {
+    setIsEditing(false)
+    const num = parseFloat(tempValue)
+    if (!isNaN(num)) {
+      const clamped = Math.max(min, Math.min(max, num))
+      onChange(clamped)
+    } else {
+      setTempValue(value.toString())
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleCommit()
+    } else if (e.key === 'Escape') {
+      setIsEditing(false)
+      setTempValue(value.toString())
+    }
+  }
+
   const percentage = Math.min(
     100,
     Math.max(0, ((value - min) / (max - min)) * 100)
   )
 
+  const isChangedFromDefault =
+    defaultValue !== undefined && Math.abs(value - defaultValue) > 0.001
+
   return (
-    <div className="space-y-1.5 py-1">
+    <div className="space-y-1 py-1">
       <div className="flex items-center justify-between text-2xs">
-        <span className="text-d2-textMuted font-medium">{label}</span>
+        <span className="text-d2-textMuted font-medium truncate max-w-[150px]">{label}</span>
         <div className="flex items-center gap-1.5">
-          <span className="font-mono text-d2-text font-semibold px-1 rounded bg-d2-surfaceElevated border border-d2-borderSubtle">
-            {step < 1 ? value.toFixed(1) : value}
-            {unit}
-          </span>
-          {onReset && defaultValue !== undefined && value !== defaultValue && (
+          {isEditing ? (
+            <div className="flex items-center bg-d2-canvas border border-d2-accent rounded px-1 py-0.5">
+              <input
+                ref={inputRef}
+                type="number"
+                value={tempValue}
+                step={step}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={handleCommit}
+                onKeyDown={handleKeyDown}
+                className="w-12 bg-transparent text-right font-mono text-3xs text-white focus:outline-none"
+              />
+              {unit && <span className="text-3xs text-d2-textSubtle ml-0.5">{unit}</span>}
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="font-mono text-3xs text-d2-text font-semibold px-1.5 py-0.5 rounded bg-d2-surfaceElevated border border-d2-borderSubtle hover:border-d2-accent/50 hover:bg-d2-surfaceActive transition-colors cursor-text"
+              title="Click to type exact value"
+            >
+              {step < 1 ? value.toFixed(1) : value}
+              {unit}
+            </button>
+          )}
+
+          {onReset && isChangedFromDefault && (
             <button
               onClick={onReset}
-              className="text-d2-textSubtle hover:text-d2-accent transition-colors"
-              title="Reset to default"
+              className="p-0.5 rounded hover:bg-d2-surfaceElevated text-d2-textSubtle hover:text-d2-accent transition-colors"
+              title={`Reset to default (${defaultValue}${unit})`}
               aria-label="Reset to default"
             >
               <RotateCcw className="w-2.5 h-2.5" />
@@ -59,9 +118,9 @@ export const Slider: React.FC<SliderProps> = ({
           step={step}
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="w-full h-1.5 bg-d2-surfaceElevated rounded-lg appearance-none cursor-pointer accent-d2-accent focus:outline-none"
+          className="w-full h-1.5 bg-d2-surfaceElevated rounded-lg appearance-none cursor-pointer accent-d2-accent focus:outline-none hover:h-2 transition-all"
           style={{
-            background: `linear-gradient(to right, #6366f1 ${percentage}%, #1c222d ${percentage}%)`,
+            background: `linear-gradient(to right, #6366f1 ${percentage}%, #1e2433 ${percentage}%)`,
           }}
         />
       </div>

@@ -5,7 +5,6 @@ import {
   Square,
   Copy,
   X,
-  ShieldCheck,
   Disc3,
   RotateCcw,
   RotateCw,
@@ -21,7 +20,7 @@ import { ProjectMenu } from './ProjectMenu'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 export const TitleBar: React.FC = () => {
-  const { isMaximized, ipcConnected, setIsMaximized } = useAppStore()
+  const { version, isMaximized, setIsMaximized } = useAppStore()
   const { projectName, saveStatus, setProjectBrowserOpen } = useProjectStore()
   const { setSettingsOpen } = useUIStore()
   const { undo, redo, past, future } = useCompositionStore()
@@ -42,14 +41,14 @@ export const TitleBar: React.FC = () => {
       {/* Left: Branding & Project Menu Button */}
       <div className="flex items-center gap-1 app-no-drag">
         <div className="flex items-center gap-2 px-1.5 py-1">
-          <div className="flex items-center justify-center w-5 h-5 rounded bg-d2-accent/20 text-d2-accent">
+          <div className="flex items-center justify-center w-5 h-5 rounded-md bg-gradient-to-tr from-d2-accent to-cyan-400 text-white shadow-xs">
             <Activity className="w-3.5 h-3.5" />
           </div>
-          <span className="text-xs font-bold tracking-wider text-d2-text uppercase">
+          <span className="text-xs font-bold tracking-wider text-white uppercase font-sans">
             D2 Visualizer
           </span>
-          <span className="text-2xs px-1.5 py-0.2 rounded bg-d2-surfaceElevated border border-d2-border text-d2-textMuted font-mono">
-            v0.1.0
+          <span className="text-3xs px-1.5 py-0.5 rounded-full bg-d2-accent/15 border border-d2-accent/30 text-indigo-300 font-mono font-semibold">
+            v{version}
           </span>
         </div>
 
@@ -92,49 +91,43 @@ export const TitleBar: React.FC = () => {
       </div>
 
       {/* Center: Active Project Indicator & Save Status */}
-      <div className="flex items-center gap-3 app-drag-region">
+      <div className="flex items-center gap-2 app-drag-region">
         <button
           onClick={() => setProjectBrowserOpen(true)}
-          className="flex items-center gap-1.5 px-2 py-0.5 rounded hover:bg-d2-surfaceElevated border border-transparent hover:border-d2-border transition-colors app-no-drag"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-d2-surfaceElevated/60 hover:bg-d2-surfaceElevated border border-d2-borderSubtle hover:border-d2-border transition-all app-no-drag group"
           title="Click to open Project Hub"
         >
-          <Disc3 className="w-3.5 h-3.5 text-d2-accent opacity-80" />
-          <span className="text-xs font-semibold text-white">
+          <Disc3 className="w-3.5 h-3.5 text-d2-accent group-hover:rotate-45 transition-transform" />
+          <span className="text-xs font-semibold text-white/90 group-hover:text-white">
             {projectName}
           </span>
         </button>
 
         {/* Save Status Indicator */}
-        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-d2-surfaceElevated border border-d2-border text-3xs font-mono app-no-drag">
+        <div className="text-3xs font-mono app-no-drag">
           {saveStatus === 'saved' && (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-emerald-400 font-medium">Saved</span>
-            </>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="font-medium">Saved</span>
+            </div>
           )}
           {saveStatus === 'saving' && (
-            <>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-              <span className="text-amber-300 font-medium">Saving...</span>
-            </>
+              <span className="font-medium">Saving...</span>
+            </div>
           )}
           {saveStatus === 'unsaved' && (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              <span className="text-amber-400 font-medium">Unsaved</span>
-            </>
+            <div
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 cursor-pointer hover:bg-amber-500/20 transition-colors"
+              title="Unsaved changes (Ctrl+S to save)"
+              onClick={() => useProjectStore.getState().saveProject()}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span className="font-medium">Unsaved</span>
+            </div>
           )}
         </div>
-
-        {ipcConnected && (
-          <div
-            className="flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/40 text-emerald-400 font-medium"
-            title="Secure Isolated Preload IPC Active"
-          >
-            <ShieldCheck className="w-3 h-3 text-emerald-400" />
-            <span>IPC SECURE</span>
-          </div>
-        )}
       </div>
 
       {/* Right: Audio Monitor, Settings & Windows Window Controls */}

@@ -7,6 +7,8 @@ import {
   Square,
   Shield,
   Eye,
+  Maximize,
+  Film,
 } from 'lucide-react'
 import {
   usePreviewStore,
@@ -27,19 +29,23 @@ export const PreviewHeader: React.FC = () => {
     toggleSafeGuides,
     previewQuality,
     setPreviewQuality,
+    isFullscreenPreview,
+    toggleFullscreenPreview,
   } = usePreviewStore()
 
   const aspectButtons: { id: AspectRatio; label: string; icon: React.ElementType }[] = [
-    { id: '16:9', label: '16:9 Landscape', icon: Tv },
-    { id: '9:16', label: '9:16 Portrait (Shorts)', icon: Smartphone },
-    { id: '1:1', label: '1:1 Square', icon: Square },
+    { id: '16:9', label: '16:9 Landscape (YouTube/Vimeo)', icon: Tv },
+    { id: '9:16', label: '9:16 Portrait (TikTok/Shorts/Reels)', icon: Smartphone },
+    { id: '1:1', label: '1:1 Square (Instagram/Post)', icon: Square },
+    { id: '4:5', label: '4:5 Portrait (Feed)', icon: Smartphone },
+    { id: '21:9', label: '21:9 Ultrawide (Cinematic)', icon: Film },
   ]
 
   return (
     <div className="h-10 w-full bg-d2-surface border-b border-d2-border px-3 flex items-center justify-between select-none z-10 shrink-0">
       {/* Left: Aspect Ratio Selector */}
-      <div className="flex items-center gap-1">
-        <span className="text-2xs font-semibold text-d2-textSubtle uppercase tracking-wider mr-1">
+      <div className="flex items-center gap-1.5">
+        <span className="text-3xs font-semibold text-d2-textSubtle uppercase tracking-wider font-mono">
           Format
         </span>
         <div className="flex items-center gap-0.5 p-0.5 rounded bg-d2-surfaceElevated border border-d2-border">
@@ -50,9 +56,9 @@ export const PreviewHeader: React.FC = () => {
               <Tooltip key={btn.id} content={btn.label} side="bottom">
                 <button
                   onClick={() => setAspectRatio(btn.id)}
-                  className={`flex items-center gap-1 px-2 py-1 rounded text-2xs font-medium transition-colors ${
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-3xs font-medium transition-colors ${
                     isSelected
-                      ? 'bg-d2-accent text-white shadow-sm'
+                      ? 'bg-d2-accent text-white shadow-xs font-semibold'
                       : 'text-d2-textSubtle hover:text-white hover:bg-d2-surfaceActive'
                   }`}
                   aria-label={btn.label}
@@ -69,7 +75,7 @@ export const PreviewHeader: React.FC = () => {
       {/* Center: Viewport Zoom & Fit Controls */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 bg-d2-surfaceElevated border border-d2-border rounded px-2 py-0.5">
-          <span className="text-2xs text-d2-textSubtle font-mono">Zoom:</span>
+          <span className="text-3xs text-d2-textSubtle font-mono uppercase">Zoom:</span>
           <select
             value={zoom}
             onChange={(e) => setZoom(parseFloat(e.target.value))}
@@ -92,6 +98,9 @@ export const PreviewHeader: React.FC = () => {
             </option>
             <option value="1.5" className="bg-d2-surface text-white">
               150%
+            </option>
+            <option value="2.0" className="bg-d2-surface text-white">
+              200%
             </option>
           </select>
         </div>
@@ -125,7 +134,7 @@ export const PreviewHeader: React.FC = () => {
         </div>
       </div>
 
-      {/* Right: Guides & Quality */}
+      {/* Right: Guides, Quality & Fullscreen */}
       <div className="flex items-center gap-2">
         <Tooltip content="Toggle Safe Margin Guides" side="bottom">
           <button
@@ -161,6 +170,21 @@ export const PreviewHeader: React.FC = () => {
             </option>
           </select>
         </div>
+
+        {/* Fullscreen Preview Toggle Button */}
+        <Tooltip content={isFullscreenPreview ? "Exit Fullscreen (Esc)" : "Fullscreen Preview (Ctrl+F)"} side="bottom">
+          <button
+            onClick={toggleFullscreenPreview}
+            className={`p-1.5 rounded border transition-colors ${
+              isFullscreenPreview
+                ? 'bg-d2-accent border-d2-accent text-white'
+                : 'bg-d2-surfaceElevated border-d2-border text-d2-textSubtle hover:text-white hover:border-d2-accent/50'
+            }`}
+            aria-label="Fullscreen Preview"
+          >
+            <Maximize className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
       </div>
     </div>
   )

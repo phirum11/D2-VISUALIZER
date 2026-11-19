@@ -1,7 +1,7 @@
 {
   "name": "d2-visualizer",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Professional desktop music visualizer and lightweight video editor",
   "main": "dist-electron/main.js",
   "scripts": {

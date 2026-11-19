@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState, useMemo } from 'react'
 import {
   Layers,
   ChevronDown,
@@ -18,6 +18,14 @@ export const TimelinePanel: React.FC = () => {
   const { zoom, tracks, setScrollLeft } = useTimelineStore()
   const { isTimelineCollapsed, toggleTimeline, timelineHeight, setTimelineHeight } = useUIStore()
   const { duration } = usePreviewStore()
+  const [filterActiveOnly, setFilterActiveOnly] = useState(false)
+
+  const displayedTracks = useMemo(() => {
+    if (!filterActiveOnly) return tracks
+    return tracks.filter(
+      (t) => t.clips.length > 0 || t.type === 'audio-master' || t.type === 'visualizer'
+    )
+  }, [tracks, filterActiveOnly])
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const headerContainerRef = useRef<HTMLDivElement>(null)
@@ -161,17 +169,30 @@ export const TimelinePanel: React.FC = () => {
       {/* Main Track Grid & Ruler */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Fixed Column: Channels / Headers */}
-        <div className="w-60 h-full bg-d2-surface border-r border-d2-border flex flex-col shrink-0 z-20 shadow-md">
-          <div className="h-8 bg-d2-surfaceElevated/70 border-b border-d2-border px-2.5 flex items-center justify-between text-3xs font-semibold uppercase tracking-wider text-d2-textSubtle shrink-0 whitespace-nowrap overflow-hidden">
-            <span>Tracks ({tracks.length})</span>
-            <span className="text-3xs font-mono text-cyan-400">Lock / Solo</span>
+        <div className="w-64 h-full bg-d2-surface border-r border-d2-border flex flex-col shrink-0 z-20 shadow-md">
+          <div className="h-8 bg-d2-surfaceElevated/70 border-b border-d2-border px-3 flex items-center justify-between text-3xs font-semibold uppercase tracking-wider text-d2-textSubtle shrink-0 whitespace-nowrap overflow-hidden">
+            <div className="flex items-center gap-2">
+              <span className="text-white/80 font-bold">Tracks ({displayedTracks.length})</span>
+              <button
+                onClick={() => setFilterActiveOnly(!filterActiveOnly)}
+                className={`px-1.5 py-0.2 rounded text-4xs font-mono font-semibold transition-colors ${
+                  filterActiveOnly
+                    ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
+                    : 'bg-d2-canvas text-d2-textSubtle hover:text-white border border-d2-borderSubtle'
+                }`}
+                title="Toggle showing only tracks with active clips"
+              >
+                {filterActiveOnly ? 'ACTIVE' : 'ALL'}
+              </button>
+            </div>
+            <span className="text-4xs font-mono text-d2-textSubtle uppercase tracking-wider">Mute / Lock</span>
           </div>
 
           <div
             ref={headerContainerRef}
             className="flex-1 overflow-hidden"
           >
-            {tracks.map((track) => (
+            {displayedTracks.map((track) => (
               <TrackHeader key={track.id} track={track} />
             ))}
           </div>
@@ -193,7 +214,7 @@ export const TimelinePanel: React.FC = () => {
 
             {/* Track Clip Lanes */}
             <div className="divide-y divide-d2-borderSubtle">
-              {tracks.map((track) => (
+              {displayedTracks.map((track) => (
                 <TrackLane key={track.id} track={track} />
               ))}
             </div>

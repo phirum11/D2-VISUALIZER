@@ -108,14 +108,20 @@ export const TimeRuler: React.FC = () => {
             className="absolute top-0 -translate-x-1/2 flex flex-col items-center cursor-pointer group z-20"
           >
             <div
-              style={{ backgroundColor: m.color }}
-              className="px-1.5 py-0.2 rounded-sm text-3xs font-semibold text-white shadow-sm flex items-center gap-1 group-hover:scale-105 transition-transform"
+              style={{
+                backgroundColor: m.color,
+                boxShadow: `0 0 8px ${m.color}50`,
+              }}
+              className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold text-white tracking-wide shadow-xs flex items-center gap-1 group-hover:brightness-125 transition-all"
             >
               <span>{m.name}</span>
             </div>
             <div
-              style={{ borderLeftColor: m.color }}
-              className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-current"
+              style={{
+                backgroundColor: m.color,
+                borderColor: 'rgba(255,255,255,0.7)',
+              }}
+              className="w-2 h-2 rotate-45 border-[1px] -mt-1 shadow-xs"
             />
           </div>
         )

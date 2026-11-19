@@ -1,168 +1,334 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
-  BarChart2,
-  Disc,
-  Radio,
-  Activity,
-  Layers,
-  Sparkles,
-  Mountain,
-  Globe2,
-  Compass,
   CheckCircle2,
   Search,
+  Star,
+  X,
+  Sparkles,
+  Clock,
+  Layers,
 } from 'lucide-react'
 import { useCompositionStore } from '@/stores/compositionStore'
-import { VisualizerRegistry, VisualizerInfo } from '@/engine/visualizers/VisualizerRegistry'
+import {
+  VISUALIZER_PRESETS,
+  VisualizerPreset,
+} from '@/engine/visualizers/VisualizerPresetCatalog'
+import { VisualizerThumbCanvas } from './VisualizerThumbCanvas'
 
-const iconMap: Record<string, React.ElementType> = {
-  'spectrum-bars': BarChart2,
-  'circular-spectrum': Disc,
-  'radial-waveform': Radio,
-  'classic-waveform': Activity,
-  'mirrored-spectrum': Layers,
-  'dual-rings': Disc,
-  '3d-sphere': Globe2,
-  '3d-landscape': Mountain,
-  'audio-radar': Compass,
-  'particles': Sparkles,
-}
+const ORDERED_CATEGORIES = [
+  'All',
+  'Favorites',
+  'Recent',
+  'Spectrum',
+  'Waveform',
+  'Circular',
+  'Radial',
+  'Geometric',
+  'Minimal',
+  'Cinematic',
+  'Particle Reactive',
+  'Neon',
+  'Experimental',
+] as const
 
 export const VisualizersPanel: React.FC = () => {
   const { visualizer, updateVisualizer } = useCompositionStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
+  const [favorites, setFavorites] = useState<string[]>([])
+  const [recents, setRecents] = useState<string[]>([])
+  const [activePresetId, setActivePresetId] = useState<string>(() => {
+    // Attempt to match current composition visualizer to a known preset
+    const match = VISUALIZER_PRESETS.find(
+      (p) =>
+        p.engineType === visualizer.type &&
+        p.config.primaryColor === visualizer.primaryColor
+    )
+    return match ? match.id : 'preset-classic-studio-bars'
+  })
 
-  const registry = VisualizerRegistry.getInstance()
-  const allVisualizers: VisualizerInfo[] = useMemo(() => registry.getAllVisualizers(), [registry])
+  // Load favorites & recents from localStorage
+  useEffect(() => {
+    try {
+      const favStr = localStorage.getItem('d2_visualizer_favorites')
+      if (favStr) setFavorites(JSON.parse(favStr))
+      const recStr = localStorage.getItem('d2_visualizer_recents')
+      if (recStr) setRecents(JSON.parse(recStr))
+    } catch {
+      // Ignore fallback
+    }
+  }, [])
 
-  const categories = useMemo(() => {
-    const cats = new Set(allVisualizers.map((v) => v.category))
-    return ['All', ...Array.from(cats)]
-  }, [allVisualizers])
+  const toggleFavorite = (presetId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const updated = favorites.includes(presetId)
+      ? favorites.filter((f) => f !== presetId)
+      : [...favorites, presetId]
+    setFavorites(updated)
+    try {
+      localStorage.setItem('d2_visualizer_favorites', JSON.stringify(updated))
+    } catch {
+      // Ignore fallback
+    }
+  }
 
-  const filteredVisualizers = useMemo(() => {
-    return allVisualizers.filter((v) => {
-      const matchesSearch =
-        v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        v.description.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesCat =
-        selectedCategory === 'All' || v.category === selectedCategory
-      return matchesSearch && matchesCat
+  const handleApplyPreset = (preset: VisualizerPreset) => {
+    setActivePresetId(preset.id)
+
+    // Apply engine type and full signature configuration to composition
+    updateVisualizer({
+      type: preset.engineType,
+      ...preset.config,
     })
-  }, [allVisualizers, searchQuery, selectedCategory])
+
+    // Track in Recents
+    const updatedRecents = [preset.id, ...recents.filter((r) => r !== preset.id)].slice(0, 12)
+    setRecents(updatedRecents)
+    try {
+      localStorage.setItem('d2_visualizer_recents', JSON.stringify(updatedRecents))
+    } catch {
+      // Ignore fallback
+    }
+  }
+
+  // Filter presets based on search query and category
+  const filteredPresets = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+
+    return VISUALIZER_PRESETS.filter((preset) => {
+      // Category filter
+      if (selectedCategory === 'Favorites') {
+        if (!favorites.includes(preset.id)) return false
+      } else if (selectedCategory === 'Recent') {
+        if (!recents.includes(preset.id)) return false
+      } else if (selectedCategory !== 'All') {
+        if (preset.category.toLowerCase() !== selectedCategory.toLowerCase()) {
+          return false
+        }
+      }
+
+      // Search filter
+      if (!q) return true
+
+      const matchesName = preset.name.toLowerCase().includes(q)
+      const matchesCategory = preset.category.toLowerCase().includes(q)
+      const matchesEngine = preset.engineType.toLowerCase().includes(q)
+      const matchesDescription = preset.description.toLowerCase().includes(q)
+      const matchesTags = preset.tags.some((t) => t.toLowerCase().includes(q))
+
+      return (
+        matchesName ||
+        matchesCategory ||
+        matchesEngine ||
+        matchesDescription ||
+        matchesTags
+      )
+    })
+  }, [searchQuery, selectedCategory, favorites, recents])
+
+  // Compute category count map for badge indicators
+  const categoryCounts = useMemo(() => {
+    const map: Record<string, number> = {
+      All: VISUALIZER_PRESETS.length,
+      Favorites: favorites.length,
+      Recent: recents.length,
+    }
+    VISUALIZER_PRESETS.forEach((p) => {
+      map[p.category] = (map[p.category] || 0) + 1
+    })
+    return map
+  }, [favorites, recents])
 
   return (
-    <div className="flex flex-col h-full select-none text-xs">
-      {/* Header & Stats */}
-      <div className="p-3 border-b border-d2-border space-y-2 bg-d2-surfaceElevated/20">
+    <div className="flex flex-col h-full select-none text-xs bg-d2-surface">
+      {/* Top Header: Title, Preset Count & Version Badge */}
+      <div className="p-3 border-b border-d2-border space-y-2.5 bg-d2-surfaceElevated/30">
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-bold text-white uppercase tracking-wider text-2xs">
-              Visualizer Library
-            </h2>
-            <span className="text-2xs text-d2-textSubtle">
-              {allVisualizers.length} Modular Audio-Reactive Styles
-            </span>
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-d2-accent" />
+            <div>
+              <h2 className="font-bold text-white uppercase tracking-wider text-2xs leading-none">
+                Visualizer Browser
+              </h2>
+              <span className="text-3xs text-d2-textSubtle font-mono">
+                {VISUALIZER_PRESETS.length} Studio Audio-Reactive Styles
+              </span>
+            </div>
           </div>
-          <span className="px-1.5 py-0.5 rounded text-3xs font-mono font-semibold bg-d2-accent/20 text-d2-accent border border-d2-accent/30">
-            ENGINE v4
+          <span className="px-2 py-0.5 rounded text-3xs font-mono font-bold bg-d2-accent/20 text-indigo-300 border border-d2-accent/40 shadow-xs">
+            v0.2.0 PRO
           </span>
         </div>
 
-        {/* Search Input */}
+        {/* Search Input Bar */}
         <div className="relative">
           <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-d2-textSubtle pointer-events-none" />
           <input
             type="text"
-            placeholder="Search styles..."
+            placeholder="Search styles, tags, neon, 3D, bass..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-7 pl-8 pr-2.5 rounded bg-d2-canvas border border-d2-border text-2xs text-white placeholder:text-d2-textSubtle focus:outline-none focus:border-d2-accent"
+            className="w-full h-7 pl-8 pr-7 rounded bg-d2-canvas border border-d2-border text-2xs text-white placeholder:text-d2-textSubtle focus:outline-none focus:border-d2-accent focus:ring-1 focus:ring-d2-accent/40 transition-all"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-d2-textSubtle hover:text-white transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* Category Pills */}
+        {/* Category Navigation Pills */}
         <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-2 py-0.5 rounded-full text-3xs font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === cat
-                  ? 'bg-d2-accent text-white font-semibold shadow-xs'
-                  : 'bg-d2-surface border border-d2-borderSubtle text-d2-textSubtle hover:text-white'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+          {ORDERED_CATEGORIES.map((cat) => {
+            const isCatSelected = selectedCategory === cat
+            const count = categoryCounts[cat] || 0
+
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-3xs font-medium whitespace-nowrap transition-all ${
+                  isCatSelected
+                    ? 'bg-d2-accent text-white font-semibold shadow-xs ring-1 ring-d2-accent/50'
+                    : 'bg-d2-surface border border-d2-borderSubtle text-d2-textSubtle hover:text-white hover:border-d2-border hover:bg-d2-surfaceElevated/60'
+                }`}
+              >
+                {cat === 'Favorites' && <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />}
+                {cat === 'Recent' && <Clock className="w-2.5 h-2.5 text-cyan-400" />}
+                <span>{cat}</span>
+                <span
+                  className={`text-4xs px-1 py-0.2 rounded-full font-mono ${
+                    isCatSelected
+                      ? 'bg-black/30 text-white'
+                      : 'bg-d2-surfaceElevated text-d2-textSubtle'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      {/* Visualizer Presets List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {filteredVisualizers.length === 0 ? (
-          <div className="py-8 text-center text-d2-textSubtle text-2xs">
-            No visualizers match &quot;{searchQuery}&quot;
+      {/* Preset Cards List */}
+      <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+        {filteredPresets.length === 0 ? (
+          <div className="py-14 text-center text-d2-textSubtle text-2xs space-y-2">
+            <Layers className="w-8 h-8 mx-auto text-d2-textSubtle/40" />
+            <p className="font-medium text-white/80">No visualizer styles found</p>
+            {selectedCategory === 'Favorites' ? (
+              <p className="text-3xs text-d2-textSubtle max-w-xs mx-auto">
+                Click the star icon (★) on any visualizer preset to add it to your Favorites collection.
+              </p>
+            ) : selectedCategory === 'Recent' ? (
+              <p className="text-3xs text-d2-textSubtle max-w-xs mx-auto">
+                Applied styles will automatically appear here for quick access.
+              </p>
+            ) : (
+              <p className="text-3xs text-d2-textSubtle">
+                Try searching with different keywords like &quot;spectrum&quot;, &quot;wave&quot;, or &quot;glow&quot;.
+              </p>
+            )}
           </div>
         ) : (
-          filteredVisualizers.map((preset) => {
-            const Icon = iconMap[preset.id] || BarChart2
-            const isSelected = visualizer.type === preset.id
+          filteredPresets.map((preset) => {
+            const isSelected =
+              activePresetId === preset.id ||
+              (visualizer.type === preset.engineType &&
+                visualizer.primaryColor === preset.config.primaryColor)
+            const isFav = favorites.includes(preset.id)
             const is3D = preset.renderType === '3d'
+            const primaryColor = preset.config.primaryColor || '#6366f1'
+            const accentColor = preset.config.accentColor || '#06b6d4'
 
             return (
               <div
                 key={preset.id}
-                onClick={() => updateVisualizer({ type: preset.id })}
-                className={`p-2.5 rounded-lg border transition-all cursor-pointer group flex items-start gap-3 ${
+                onClick={() => handleApplyPreset(preset)}
+                className={`p-1.5 rounded-lg border transition-all cursor-pointer group flex items-center gap-2.5 relative overflow-hidden ${
                   isSelected
-                    ? 'bg-d2-accent/15 border-d2-accent shadow-md shadow-d2-accent/10'
-                    : 'bg-d2-surfaceElevated/40 border-d2-borderSubtle hover:border-d2-border hover:bg-d2-surfaceElevated'
+                    ? 'bg-d2-accent/15 border-d2-accent shadow-sm ring-1 ring-d2-accent/50'
+                    : 'bg-d2-surfaceElevated/40 border-d2-borderSubtle hover:border-d2-border hover:bg-d2-surfaceElevated/80'
                 }`}
               >
-                <div
-                  className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 transition-colors ${
-                    isSelected
-                      ? 'bg-d2-accent text-white shadow-sm'
-                      : 'bg-d2-surface border border-d2-border text-d2-textMuted group-hover:text-white'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
+                {/* Active Indicator Left Strip */}
+                {isSelected && (
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-1"
+                    style={{
+                      background: `linear-gradient(180deg, ${primaryColor}, ${accentColor})`,
+                    }}
+                  />
+                )}
+
+                {/* Animated Canvas Thumbnail Preview */}
+                <div className="w-16 h-11 rounded-md bg-black/80 border border-white/10 relative overflow-hidden shrink-0 group-hover:border-white/20 transition-all shadow-inner">
+                  <VisualizerThumbCanvas
+                    pluginId={preset.engineType}
+                    renderType={preset.renderType}
+                    presetConfig={preset.config}
+                    isActive={isSelected}
+                  />
+                  {is3D && (
+                    <span className="absolute bottom-0.5 right-0.5 text-[8px] font-mono font-bold px-1 rounded bg-black/90 text-cyan-300 border border-cyan-400/30">
+                      3D
+                    </span>
+                  )}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
+                {/* Preset Info */}
+                <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+                  <div className="flex items-center justify-between gap-1">
                     <span
-                      className={`text-2xs font-semibold truncate ${
-                        isSelected ? 'text-white' : 'text-d2-text'
+                      className={`text-2xs font-semibold truncate tracking-tight ${
+                        isSelected ? 'text-white' : 'text-d2-text group-hover:text-white'
                       }`}
                     >
                       {preset.name}
                     </span>
-                    {isSelected && (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-d2-accent shrink-0 ml-1" />
-                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => toggleFavorite(preset.id, e)}
+                      className={`p-0.5 rounded hover:bg-d2-surface transition-colors shrink-0 ${
+                        isFav ? 'text-amber-400' : 'text-d2-textSubtle hover:text-white opacity-0 group-hover:opacity-100'
+                      }`}
+                      title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <Star className={`w-3 h-3 ${isFav ? 'fill-current' : ''}`} />
+                    </button>
                   </div>
-                  <p className="text-2xs text-d2-textSubtle mt-0.5 line-clamp-2 leading-relaxed">
-                    {preset.description}
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <span className="text-3xs px-1.5 py-0.2 rounded bg-d2-canvas text-d2-textSubtle border border-d2-borderSubtle font-mono">
+
+                  {/* Category Pill & Color Dots */}
+                  <div className="flex items-center justify-between gap-1 text-3xs text-d2-textSubtle font-mono">
+                    <span className="px-1.5 py-0.2 rounded bg-d2-canvas/80 text-d2-textMuted border border-d2-borderSubtle text-[9px]">
                       {preset.category}
                     </span>
-                    <span
-                      className={`text-3xs px-1.5 py-0.2 rounded font-mono font-medium ${
-                        is3D
-                          ? 'bg-purple-950/60 text-purple-300 border border-purple-800/40'
-                          : 'bg-cyan-950/60 text-cyan-300 border border-cyan-800/40'
-                      }`}
-                    >
-                      {is3D ? '3D WebGL' : '2D Canvas'}
-                    </span>
+
+                    {/* Color Swatch Dots */}
+                    <div className="flex items-center -space-x-1">
+                      <div
+                        className="w-2 h-2 rounded-full ring-1 ring-black"
+                        style={{ backgroundColor: primaryColor }}
+                      />
+                      <div
+                        className="w-2 h-2 rounded-full ring-1 ring-black"
+                        style={{ backgroundColor: accentColor }}
+                      />
+                    </div>
                   </div>
                 </div>
+
+                {/* Active Checkmark */}
+                {isSelected && (
+                  <div className="shrink-0 pr-1 text-d2-accent">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </div>
+                )}
+
               </div>
             )
           })

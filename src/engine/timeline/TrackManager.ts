@@ -105,18 +105,7 @@ export class TrackManager {
         locked: false,
         height: 44,
         order: 4,
-        clips: [
-          {
-            id: 'clip-artwork-main',
-            trackId: 'track-artwork',
-            name: 'Album Cover Artwork',
-            type: 'artwork',
-            startTime: 0,
-            duration: validDuration,
-            offset: 0,
-            color: '#f59e0b',
-          },
-        ],
+        clips: [],
       },
       {
         id: 'track-logo',
@@ -126,18 +115,7 @@ export class TrackManager {
         locked: false,
         height: 44,
         order: 5,
-        clips: [
-          {
-            id: 'clip-logo-main',
-            trackId: 'track-logo',
-            name: 'Brand Watermark Badge',
-            type: 'logo',
-            startTime: 0,
-            duration: validDuration,
-            offset: 0,
-            color: '#ec4899',
-          },
-        ],
+        clips: [],
       },
       {
         id: 'track-particles',
@@ -147,18 +125,7 @@ export class TrackManager {
         locked: false,
         height: 44,
         order: 6,
-        clips: [
-          {
-            id: 'clip-particles-main',
-            trackId: 'track-particles',
-            name: 'Ambient Particle Drift',
-            type: 'particles',
-            startTime: 0,
-            duration: validDuration,
-            offset: 0,
-            color: '#10b981',
-          },
-        ],
+        clips: [],
       },
       {
         id: 'track-effects',
@@ -168,18 +135,7 @@ export class TrackManager {
         locked: false,
         height: 44,
         order: 7,
-        clips: [
-          {
-            id: 'clip-effects-main',
-            trackId: 'track-effects',
-            name: 'Cinematic Post Effects',
-            type: 'effects',
-            startTime: 0,
-            duration: validDuration,
-            offset: 0,
-            color: '#f97316',
-          },
-        ],
+        clips: [],
       },
     ]
   }

@@ -48,13 +48,16 @@ export const SidebarNav: React.FC = () => {
                   }
                   setActiveTab(tab.id)
                 }}
-                className={`w-9 h-9 rounded flex items-center justify-center transition-all ${
+                className={`w-9 h-9 rounded-lg relative flex items-center justify-center transition-all ${
                   isActive
-                    ? 'bg-d2-accent text-white shadow-lg shadow-d2-accent/30 font-semibold'
-                    : 'text-d2-textMuted hover:text-d2-text hover:bg-d2-surfaceElevated'
+                    ? 'bg-d2-accent text-white shadow-md shadow-d2-accent/30 font-semibold'
+                    : 'text-d2-textMuted hover:text-white hover:bg-d2-surfaceElevated'
                 }`}
                 aria-label={tab.label}
               >
+                {isActive && (
+                  <span className="absolute -left-1.5 top-2 bottom-2 w-1 rounded-r bg-white" />
+                )}
                 <Icon className="w-4 h-4" />
               </button>
             </Tooltip>

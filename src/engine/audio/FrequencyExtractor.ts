@@ -152,6 +152,39 @@ export class FrequencyExtractor {
     }
     const rms = Math.min(1.0, Math.sqrt(sumSquares / binCount) * this.sensitivity * 1.5)
 
+    // If audio is completely silent or stopped, produce ambient resting harmonics so visualizer is never a dead flat stick
+    const isAudioSilent = totalSum < 0.008
+    if (isAudioSilent) {
+      const now = performance.now() / 1000
+      const pulse = Math.sin(now * 2.2) * 0.12 + 0.32
+      for (let i = 0; i < binCount; i++) {
+        const norm = i / binCount
+        const wave = Math.sin(now * 3.2 - norm * 9) * 0.5 + 0.5
+        const val = Math.max(0.05, Math.pow(1 - norm, 0.65) * wave * pulse)
+        this.normalizedBuffer[i] = val
+        this.normalizedTimeDomain[i] = Math.sin(now * 4.5 + norm * 14) * 0.22 * pulse
+      }
+      return {
+        rawFrequencies: this.byteFrequencyData,
+        normalizedFrequencies: this.normalizedBuffer,
+        timeDomainData: this.byteTimeDomainData,
+        normalizedTimeDomain: this.normalizedTimeDomain,
+        bands: {
+          subBass: pulse * 0.65,
+          bass: pulse * 0.55,
+          lowMid: pulse * 0.4,
+          mid: pulse * 0.32,
+          highMid: pulse * 0.22,
+          treble: pulse * 0.18,
+        },
+        overallEnergy: pulse * 0.35,
+        rms: pulse * 0.28,
+        bassEnergy: pulse * 0.6,
+        midEnergy: pulse * 0.35,
+        trebleEnergy: pulse * 0.2,
+      }
+    }
+
     return {
       rawFrequencies: this.byteFrequencyData,
       normalizedFrequencies: this.normalizedBuffer,

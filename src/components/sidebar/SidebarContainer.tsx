@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { useUIStore } from '@/stores/uiStore'
 import { SidebarNav } from './SidebarNav'
 import { MediaPanel } from './panels/MediaPanel'
@@ -10,7 +10,30 @@ import { TemplatesPanel } from './panels/TemplatesPanel'
 import { ExportPanel } from './panels/ExportPanel'
 
 export const SidebarContainer: React.FC = () => {
-  const { activeTab, isSidebarCollapsed, sidebarWidth } = useUIStore()
+  const { activeTab, isSidebarCollapsed, sidebarWidth, setSidebarWidth } = useUIStore()
+  const isDraggingRef = useRef(false)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingRef.current = true
+    const startX = e.clientX
+    const startW = sidebarWidth
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current) return
+      const deltaX = ev.clientX - startX
+      setSidebarWidth(startW + deltaX)
+    }
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
 
   const renderActivePanel = () => {
     switch (activeTab) {
@@ -34,18 +57,26 @@ export const SidebarContainer: React.FC = () => {
   }
 
   return (
-    <div className="flex h-full select-none shrink-0 z-20 border-r border-d2-border">
+    <div className="flex h-full select-none shrink-0 z-20 border-r border-d2-border relative">
       {/* Icon Tab Strip */}
       <SidebarNav />
 
       {/* Expandable Content Drawer */}
       {!isSidebarCollapsed && (
-        <div
-          style={{ width: `${sidebarWidth}px` }}
-          className="h-full bg-d2-surface border-r border-d2-border flex flex-col overflow-hidden transition-[width] duration-150 ease-out"
-        >
-          {renderActivePanel()}
-        </div>
+        <>
+          <div
+            style={{ width: `${sidebarWidth}px` }}
+            className="h-full bg-d2-surface flex flex-col overflow-hidden"
+          >
+            {renderActivePanel()}
+          </div>
+          {/* Vertical Resize Splitter */}
+          <div
+            onMouseDown={handleMouseDown}
+            className="w-1 h-full cursor-col-resize z-30 bg-d2-border hover:bg-d2-accent active:bg-d2-accent transition-colors"
+            title="Drag to resize panel"
+          />
+        </>
       )}
     </div>
   )

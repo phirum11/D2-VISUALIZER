@@ -109,18 +109,99 @@ export interface AmbientParticlesConfig {
 }
 
 export type CinematicMotionPreset =
+  // Basic Cinematic
   | 'none'
+  | 'static'
   | 'slow-zoom-in'
   | 'slow-zoom-out'
+  | 'push-in'
+  | 'slow-push-in'
+  | 'pull-out'
   | 'pan-left'
   | 'pan-right'
+  | 'pan-up'
+  | 'vertical-pan-up'
+  | 'pan-down'
+  | 'vertical-pan-down'
+  // Advanced Cinematic
+  | 'dolly-in'
+  | 'dolly-out'
+  | 'truck-left'
+  | 'truck-right'
+  | 'crane-up'
+  | 'crane-down'
+  | 'orbit-left'
+  | 'orbit-right'
+  // Dynamic Motion
+  | 'floating-camera'
+  | 'cinematic-drift'
+  | 'smooth-drift'
+  | 'smooth-ken-burns'
+  | 'ken-burns'
+  | 'subtle-handheld'
+  | 'handheld'
+  | 'parallax-movement'
+  | 'parallax'
+  | 'dynamic-zoom'
+  | 'zoom-pulse'
+  | 'camera-rotation-drift'
+  | 'rotation-drift'
+  // Audio Reactive
+  | 'beat-zoom'
+  | 'bass-pulse'
+  | 'beat-sync-zoom'
+  | 'kick-pulse-cam'
+  | 'energy-drift-cam'
+  // Epic & Extended Cinematic
+  | 'warp-speed-push'
+  | 'earthquake-shaker'
+  | 'spiral-dolly'
+  | 'vortex-roll'
+  | 'drone-chase'
+  | 'hyper-zoom-pulse'
+  // Aliases for backwards compatibility
   | 'vertical-pan'
   | 'subtle-motion'
   | 'beat-pulse'
 
+export type CameraEasingType =
+  | 'linear'
+  | 'ease-in-out'
+  | 'smooth-step'
+  | 'sine'
+  | 'cubic'
+  | 'exponential'
+
+export type CameraLoopMode = 'loop' | 'ping-pong' | 'once'
+
 export interface CinematicMotionConfig {
   preset: CinematicMotionPreset
-  intensity: number
+  intensity: number // 0.0 to 2.0 (default 1.0)
+  speed: number // 0.2 to 3.0 (default 1.0)
+  zoomStrength: number // 0 to 100% (default 40%)
+  panDistance: number // 0 to 100px (default 35px)
+  rotationAmount: number // 0 to 15 deg (default 2 deg)
+  smoothness: number // 0 to 100% (default 80%)
+  easingType: CameraEasingType
+  loopAnimation: boolean
+  loopMode?: CameraLoopMode
+  // Start and End values
+  startZoom?: number // 0.8 to 1.5 (default 1.0)
+  endZoom?: number // 0.8 to 1.5 (default 1.15)
+  startPanX?: number // -100 to 100 px (default 0)
+  endPanX?: number // -100 to 100 px (default 0)
+  startPanY?: number // -100 to 100 px (default 0)
+  endPanY?: number // -100 to 100 px (default 0)
+  startRotation?: number // -15 to 15 deg (default 0)
+  endRotation?: number // -15 to 15 deg (default 0)
+  // Beat Sync
+  beatSync?: boolean
+  beatSyncDivision?: '1/4' | '1/2' | '1' | '2' | '4'
+  // Audio-Reactive Camera Controls
+  beatZoom: number // 0 to 100% (default 0)
+  bassImpactZoom: number // 0 to 100% (default 0)
+  kickPulse: number // 0 to 100% (default 0)
+  energyMovement: number // 0 to 100% (default 0)
 }
 
 export interface VisualLayer {
@@ -209,17 +290,17 @@ export interface CompositionState {
 
 const initialVisualizer: VisualizerConfig = {
   type: 'spectrum-bars',
-  barCount: 48,
-  thickness: 8,
-  spacing: 4,
-  sensitivity: 1.2,
-  smoothing: 0.8,
-  glow: 15,
+  barCount: 56,
+  thickness: 12,
+  spacing: 6,
+  sensitivity: 1.25,
+  smoothing: 0.75,
+  glow: 20,
   primaryColor: '#6366f1',
   accentColor: '#06b6d4',
   positionX: 0,
-  positionY: 15,
-  scale: 1,
+  positionY: 12,
+  scale: 1.25,
   rotation: 0,
   opacity: 1,
 }
@@ -299,6 +380,28 @@ const initialAmbientParticles: AmbientParticlesConfig = {
 const initialCinematicMotion: CinematicMotionConfig = {
   preset: 'none',
   intensity: 1.0,
+  speed: 1.0,
+  zoomStrength: 40,
+  panDistance: 35,
+  rotationAmount: 2.0,
+  smoothness: 80,
+  easingType: 'ease-in-out',
+  loopAnimation: true,
+  loopMode: 'ping-pong',
+  startZoom: 1.0,
+  endZoom: 1.15,
+  startPanX: 0,
+  endPanX: 0,
+  startPanY: 0,
+  endPanY: 0,
+  startRotation: 0,
+  endRotation: 0,
+  beatSync: false,
+  beatSyncDivision: '1',
+  beatZoom: 0,
+  bassImpactZoom: 0,
+  kickPulse: 0,
+  energyMovement: 0,
 }
 
 const initialLayers: VisualLayer[] = [
@@ -319,28 +422,28 @@ const initialOverlays: OverlayElement[] = [
     name: 'Song Title',
     type: 'text',
     role: 'title',
-    text: 'Midnight Resonance',
+    text: 'MIDNIGHT RESONANCE',
     fontFamily: 'Montserrat',
-    fontSize: 34,
+    fontSize: 38,
     fontWeight: '700',
     fontStyle: 'normal',
     color: '#ffffff',
     alignment: 'center',
-    letterSpacing: 4,
+    letterSpacing: 6,
     lineHeight: 1.2,
     positionX: 0,
-    positionY: -22,
+    positionY: -16,
     scale: 1,
     rotation: 0,
     opacity: 1,
-    shadowColor: 'rgba(0,0,0,0.85)',
-    shadowBlur: 14,
+    shadowColor: 'rgba(0,0,0,0.9)',
+    shadowBlur: 18,
     shadowOffsetX: 0,
     shadowOffsetY: 3,
     outlineColor: '',
     outlineWidth: 0,
     glowColor: '#6366f1',
-    glowBlur: 10,
+    glowBlur: 14,
     bgBox: false,
     bgBoxColor: '#000000',
     bgBoxPadding: 8,
@@ -364,21 +467,21 @@ const initialOverlays: OverlayElement[] = [
     name: 'Artist Name',
     type: 'text',
     role: 'artist',
-    text: 'Starlight Echoes',
+    text: 'STARLIGHT ECHOES',
     fontFamily: 'Inter',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '500',
     fontStyle: 'normal',
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(255, 255, 255, 0.75)',
     alignment: 'center',
-    letterSpacing: 3,
+    letterSpacing: 4,
     lineHeight: 1.2,
     positionX: 0,
-    positionY: -15,
+    positionY: -8,
     scale: 1,
     rotation: 0,
     opacity: 0.9,
-    shadowColor: 'rgba(0,0,0,0.8)',
+    shadowColor: 'rgba(0,0,0,0.85)',
     shadowBlur: 10,
     shadowOffsetX: 0,
     shadowOffsetY: 2,
@@ -411,25 +514,25 @@ const initialOverlays: OverlayElement[] = [
     role: 'subtitle',
     text: 'OFFICIAL AUDIO VISUALIZER',
     fontFamily: 'JetBrains Mono',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     fontStyle: 'normal',
-    color: '#06b6d4',
+    color: '#38bdf8',
     alignment: 'center',
-    letterSpacing: 4,
+    letterSpacing: 5,
     lineHeight: 1.2,
     positionX: 0,
-    positionY: -9,
+    positionY: -1,
     scale: 1,
     rotation: 0,
-    opacity: 0.85,
+    opacity: 0.9,
     shadowColor: 'rgba(0,0,0,0.8)',
     shadowBlur: 6,
     shadowOffsetX: 0,
     shadowOffsetY: 1,
     outlineColor: '',
     outlineWidth: 0,
-    glowColor: '#06b6d4',
+    glowColor: '#38bdf8',
     glowBlur: 8,
     bgBox: false,
     bgBoxColor: '',

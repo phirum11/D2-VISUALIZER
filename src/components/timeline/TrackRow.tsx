@@ -21,6 +21,17 @@ import { useTimelineStore } from '@/stores/timelineStore'
 import { useAudioStore } from '@/stores/audioStore'
 import { WaveformGenerator } from '@/engine/audio/WaveformGenerator'
 
+const TRACK_ACCENTS: Record<string, { color: string; border: string; bg: string }> = {
+  'visualizer': { color: '#818cf8', border: '#6366f1', bg: 'rgba(99, 102, 241, 0.15)' },
+  'audio-master': { color: '#22d3ee', border: '#06b6d4', bg: 'rgba(6, 182, 212, 0.15)' },
+  'background': { color: '#fbbf24', border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
+  'typography': { color: '#f472b6', border: '#ec4899', bg: 'rgba(236, 72, 153, 0.15)' },
+  'particles': { color: '#c084fc', border: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)' },
+  'effects': { color: '#34d399', border: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' },
+  'artwork': { color: '#60a5fa', border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
+  'logo': { color: '#94a3b8', border: '#64748b', bg: 'rgba(100, 116, 139, 0.15)' },
+}
+
 interface TrackProps {
   track: TimelineTrack
 }
@@ -39,6 +50,7 @@ export const TrackHeader: React.FC<TrackProps> = ({ track }) => {
   const [nameVal, setNameVal] = useState(track.name)
 
   const isSelected = selectedTrackId === track.id
+  const trackAccent = TRACK_ACCENTS[track.type] || TRACK_ACCENTS['visualizer']
 
   const getTrackIcon = () => {
     switch (track.type) {
@@ -74,13 +86,22 @@ export const TrackHeader: React.FC<TrackProps> = ({ track }) => {
 
   return (
     <div
-      className={`h-11 border-b border-d2-borderSubtle px-2.5 flex items-center justify-between select-none transition-colors ${
-        isSelected ? 'bg-d2-surfaceElevated border-l-2 border-l-d2-accent' : 'bg-d2-surface'
+      onClick={() => useTimelineStore.setState({ selectedTrackId: track.id })}
+      className={`h-8 border-b border-d2-borderSubtle px-2 flex items-center justify-between select-none transition-colors cursor-pointer ${
+        isSelected ? 'bg-d2-surfaceElevated border-l-2' : 'bg-d2-surface hover:bg-d2-surfaceElevated/60'
       }`}
+      style={isSelected ? { borderLeftColor: trackAccent.border } : {}}
     >
       <div className="flex items-center gap-2 min-w-0 flex-1 mr-1">
-        <div className="w-5 h-5 rounded flex items-center justify-center bg-d2-surfaceElevated text-d2-textMuted shrink-0">
-          <TrackIcon className="w-3 h-3 text-d2-accent" />
+        <div
+          className="w-5 h-5 rounded flex items-center justify-center shrink-0 border"
+          style={{
+            backgroundColor: trackAccent.bg,
+            borderColor: trackAccent.border,
+            color: trackAccent.color,
+          }}
+        >
+          <TrackIcon className="w-3 h-3" />
         </div>
 
         {isEditingName ? (
@@ -110,7 +131,7 @@ export const TrackHeader: React.FC<TrackProps> = ({ track }) => {
       </div>
 
       {/* Action Toggles */}
-      <div className="flex items-center gap-0.5 shrink-0">
+      <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
         {track.type === 'audio-master' && (
           <button
             onClick={() => toggleTrackMute(track.id)}
@@ -249,7 +270,7 @@ export const TrackLane: React.FC<TrackProps> = ({ track }) => {
   }
 
   return (
-    <div className="h-11 relative overflow-visible flex items-center bg-d2-canvas/30 hover:bg-d2-surfaceElevated/15 transition-colors">
+    <div className="h-8 relative overflow-visible flex items-center bg-d2-canvas/30 hover:bg-d2-surfaceElevated/15 transition-colors">
       {track.clips.map((clip) => {
         const isSelected = selectedClipId === clip.id
         const clipLeft = clip.startTime * zoom
@@ -262,13 +283,18 @@ export const TrackLane: React.FC<TrackProps> = ({ track }) => {
             style={{
               left: `${clipLeft}px`,
               width: `${clipWidth}px`,
-              backgroundColor: clip.color + '26',
-              borderColor: clip.color,
+              backgroundColor: '#111522',
+              borderColor: clip.color + '60',
             }}
-            className={`absolute top-1 bottom-1 rounded border px-2 flex items-center justify-between cursor-pointer select-none transition-all group ${
-              isSelected ? 'ring-2 ring-white shadow-lg z-20' : 'hover:brightness-110 z-10'
+            className={`absolute top-0.5 bottom-0.5 rounded border px-2 flex items-center justify-between cursor-pointer select-none transition-all group overflow-hidden ${
+              isSelected ? 'ring-1 ring-white shadow-md shadow-black/80 z-20' : 'hover:border-white/40 z-10'
             } ${!track.visible ? 'opacity-30' : ''} ${track.locked ? 'cursor-not-allowed opacity-60' : ''}`}
           >
+            {/* Top Accent Strip */}
+            <div
+              className="absolute top-0 left-0 right-0 h-[2.5px]"
+              style={{ backgroundColor: clip.color }}
+            />
             {/* Left Trim Handle */}
             {!track.locked && (
               <div

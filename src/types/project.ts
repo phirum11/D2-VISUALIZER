@@ -23,7 +23,7 @@ export interface D2ProjectMetadata {
   id: string
   name: string
   version: string // Schema version, e.g. '1.0.0'
-  d2AppVersion: string // App version, e.g. '0.1.0'
+  d2AppVersion: string // App version, e.g. '0.2.0'
   createdAt: string // ISO timestamp
   modifiedAt: string // ISO timestamp
   author?: string

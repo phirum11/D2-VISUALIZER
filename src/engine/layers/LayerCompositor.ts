@@ -67,13 +67,22 @@ export class LayerCompositor {
     ctx.clearRect(0, 0, w, h)
 
     // 3. Compute Cinematic Camera Motion
-    const camera = this.cinematicEffects.getCameraMotion(cinematicMotion, audioFrame, timestamp)
+    const camera = this.cinematicEffects.getCameraMotion(
+      cinematicMotion,
+      audioFrame,
+      timestamp,
+      w,
+      h
+    )
 
     ctx.save()
     // Apply camera motion around canvas center
-    if (camera.scale !== 1 || camera.translateX !== 0 || camera.translateY !== 0) {
+    if (camera.scale !== 1 || camera.translateX !== 0 || camera.translateY !== 0 || camera.rotation !== 0) {
       ctx.translate(w / 2, h / 2)
       ctx.scale(camera.scale, camera.scale)
+      if (camera.rotation) {
+        ctx.rotate((camera.rotation * Math.PI) / 180)
+      }
       ctx.translate(-w / 2 + camera.translateX, -h / 2 + camera.translateY)
     }
 
