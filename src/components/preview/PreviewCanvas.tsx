@@ -1,14 +1,36 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useCompositionStore } from '@/stores/compositionStore'
 import { AudioEngine } from '@/engine/audio/AudioEngine'
 import { LayerCompositor } from '@/engine/layers/LayerCompositor'
+import { subscribeFrames } from '@/engine/render/FrameScheduler'
+import { useExportStore } from '@/stores/exportStore'
+import { getPreviewSize } from '@/engine/render/PreviewSizing'
 
 export const PreviewCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null)
 
-  const { aspectRatio, zoom, showSafeGuides, isPlaying, previewQuality, isFullscreenPreview, toggleFullscreenPreview, setIsFullscreenPreview } = usePreviewStore()
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      if (width <= 0 || height <= 0) return
+      setViewport(previous => previous?.width === width && previous?.height === height
+        ? previous : { width, height })
+    })
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
+
+  const { aspectRatio, zoom, fitMode, showSafeGuides, isPlaying, previewQuality, isFullscreenPreview, toggleFullscreenPreview, setIsFullscreenPreview } = usePreviewStore(useShallow((s) => ({
+    aspectRatio: s.aspectRatio, zoom: s.zoom, fitMode: s.fitMode, showSafeGuides: s.showSafeGuides,
+    isPlaying: s.isPlaying, previewQuality: s.previewQuality, isFullscreenPreview: s.isFullscreenPreview,
+    toggleFullscreenPreview: s.toggleFullscreenPreview, setIsFullscreenPreview: s.setIsFullscreenPreview,
+  })))
 
   // Fullscreen keyboard listener
   useEffect(() => {
@@ -42,10 +64,14 @@ export const PreviewCanvas: React.FC = () => {
   }
 
   const { width: nativeWidth, height: nativeHeight } = getNativeDimensions()
-  const qualityScale =
-    previewQuality === 'performance' ? 0.6 : previewQuality === 'balanced' ? 0.85 : 1.0
-  const bufferWidth = Math.round(nativeWidth * qualityScale)
-  const bufferHeight = Math.round(nativeHeight * qualityScale)
+  // Measure the workspace, not the canvas: pixel-buffer changes must not change layout.
+  const { displayWidth, displayHeight, bufferWidth, bufferHeight, renderScale: qualityScale } = getPreviewSize({
+    nativeWidth, nativeHeight,
+    viewportWidth: viewport?.width ?? 640,
+    viewportHeight: viewport?.height ?? 360,
+    zoom, fullscreen: isFullscreenPreview, fill: fitMode === 'fill',
+    quality: previewQuality, dpr: window.devicePixelRatio || 1,
+  })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -53,11 +79,11 @@ export const PreviewCanvas: React.FC = () => {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    let animId: number
     const engine = AudioEngine.getInstance()
     const compositor = LayerCompositor.getInstance()
 
-    const render = () => {
+    const render = (frameTimestamp: number) => {
+      if (useExportStore.getState().isExporting) return
       // Set canvas pixel buffer according to active performance mode
       if (canvas.width !== bufferWidth || canvas.height !== bufferHeight) {
         canvas.width = bufferWidth
@@ -65,7 +91,7 @@ export const PreviewCanvas: React.FC = () => {
       }
 
       // Query real-time FFT audio frame and playhead
-      const audioFrame = engine.getLiveFrameData()
+      const audioFrame = engine.getLiveFrameData(frameTimestamp)
       const audioTime = engine.getCurrentTime()
       const timestamp = audioTime > 0 ? audioTime : performance.now() / 1000
       const state = useCompositionStore.getState()
@@ -85,6 +111,7 @@ export const PreviewCanvas: React.FC = () => {
         width: nativeWidth,
         height: nativeHeight,
         dpr: window.devicePixelRatio || 1,
+        renderScale: qualityScale,
         showSafeGuides,
         isPlaying,
         audioTime,
@@ -92,14 +119,10 @@ export const PreviewCanvas: React.FC = () => {
 
       ctx.restore()
 
-      animId = requestAnimationFrame(render)
     }
 
-    animId = requestAnimationFrame(render)
-
-    return () => {
-      if (animId) cancelAnimationFrame(animId)
-    }
+    const fps = !isPlaying ? 15 : previewQuality === 'performance' ? 30 : 60
+    return subscribeFrames(render, fps)
   }, [
     nativeWidth,
     nativeHeight,
@@ -112,49 +135,14 @@ export const PreviewCanvas: React.FC = () => {
     showSafeGuides,
   ])
 
-  // Compute CSS display scaling
-  const getContainerStyle = () => {
-    if (isFullscreenPreview) {
-      return { className: 'w-full h-full max-w-full max-h-full' }
-    }
-    if (zoom > 0) {
-      return {
-        width: `${nativeWidth * zoom * 0.5}px`,
-        height: `${nativeHeight * zoom * 0.5}px`,
-      }
-    }
-    const aspectStyle =
-      aspectRatio === '9:16'
-        ? 'h-full max-h-[92%] aspect-[9/16]'
-        : aspectRatio === '1:1'
-        ? 'h-full max-h-[92%] aspect-square'
-        : aspectRatio === '4:5'
-        ? 'h-full max-h-[92%] aspect-[4/5]'
-        : aspectRatio === '21:9'
-        ? 'w-full max-w-[94%] aspect-[21/9]'
-        : 'max-w-[94%] max-h-[92%] aspect-video'
-    return { className: aspectStyle }
-  }
-
-  const containerStyle = getContainerStyle()
-
   return (
     <div
       ref={containerRef}
       className={`${
         isFullscreenPreview
           ? 'fixed inset-0 z-50 bg-black p-0'
-          : 'flex-1 w-full h-full bg-[#0a0c10] p-4 relative'
-      } flex items-center justify-center overflow-hidden transition-all`}
-      style={
-        isFullscreenPreview
-          ? {}
-          : {
-              backgroundImage:
-                'radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
-              backgroundSize: '24px 24px',
-            }
-      }
+          : 'flex-1 w-full min-h-0 bg-d2-canvas p-4 relative'
+      } flex items-center justify-center overflow-hidden`}
     >
       {/* Floating Exit Button for Fullscreen */}
       {isFullscreenPreview && (
@@ -170,17 +158,12 @@ export const PreviewCanvas: React.FC = () => {
       )}
 
       <div
-        className={`relative shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.08)] rounded-lg overflow-hidden flex items-center justify-center bg-black transition-all ${
-          containerStyle.className || ''
-        }`}
-        style={
-          !isFullscreenPreview && zoom > 0
-            ? { width: containerStyle.width, height: containerStyle.height }
-            : {}
-        }
+        className="relative shrink-0 ring-1 ring-white/10 overflow-hidden bg-black"
+        style={{ width: displayWidth, height: displayHeight }}
       >
         <canvas
           ref={canvasRef}
+          aria-label="Composition preview"
           className="w-full h-full object-contain pointer-events-none"
         />
       </div>

@@ -9,6 +9,8 @@ export const IPC_CHANNELS = {
   // App & System Information
   APP_GET_VERSION: 'd2:app:getVersion',
   APP_GET_PLATFORM: 'd2:app:getPlatform',
+  HARDWARE_GET_SAVED: 'd2:hardware:getSaved',
+  HARDWARE_CHECK_ONCE: 'd2:hardware:checkOnce',
 
   // Dialogs
   DIALOG_OPEN_AUDIO: 'd2:dialog:openAudio',

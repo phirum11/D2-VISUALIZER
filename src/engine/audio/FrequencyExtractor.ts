@@ -8,6 +8,7 @@ export interface AudioBands {
 }
 
 export interface AudioFrameData {
+  sampleRate?: number
   rawFrequencies: Uint8Array
   normalizedFrequencies: Float32Array
   timeDomainData: Uint8Array
@@ -165,6 +166,7 @@ export class FrequencyExtractor {
         this.normalizedTimeDomain[i] = Math.sin(now * 4.5 + norm * 14) * 0.22 * pulse
       }
       return {
+        sampleRate: this.sampleRate,
         rawFrequencies: this.byteFrequencyData,
         normalizedFrequencies: this.normalizedBuffer,
         timeDomainData: this.byteTimeDomainData,
@@ -186,6 +188,7 @@ export class FrequencyExtractor {
     }
 
     return {
+      sampleRate: this.sampleRate,
       rawFrequencies: this.byteFrequencyData,
       normalizedFrequencies: this.normalizedBuffer,
       timeDomainData: this.byteTimeDomainData,

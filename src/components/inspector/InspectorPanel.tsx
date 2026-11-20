@@ -1,14 +1,9 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import {
-  Sliders,
   Move,
   Palette,
   PanelRightClose,
   PanelRightOpen,
-  Activity,
-  Image as ImageIcon,
-  Type,
-  Layers,
   Eye,
 } from 'lucide-react'
 import { useUIStore, LayerId } from '@/stores/uiStore'
@@ -18,6 +13,7 @@ import { Slider } from '@/components/ui/Slider'
 import { ColorPicker } from '@/components/ui/ColorPicker'
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { BassReactivitySection } from './BassReactivitySection'
 
 export const InspectorPanel: React.FC = () => {
   const {
@@ -29,10 +25,20 @@ export const InspectorPanel: React.FC = () => {
     setSelectedLayer,
   } = useUIStore()
   const isDraggingRef = useRef(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const expandButtonRef = useRef<HTMLButtonElement>(null)
+  const collapseButtonRef = useRef<HTMLButtonElement>(null)
+  const handleToggleInspector = () => {
+    toggleInspector()
+    requestAnimationFrame(() => {
+      (isInspectorCollapsed ? collapseButtonRef : expandButtonRef).current?.focus()
+    })
+  }
 
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
     isDraggingRef.current = true
+    setIsResizing(true)
     const startX = e.clientX
     const startW = inspectorWidth
 
@@ -44,6 +50,7 @@ export const InspectorPanel: React.FC = () => {
 
     const handleMouseUp = () => {
       isDraggingRef.current = false
+      setIsResizing(false)
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
@@ -72,19 +79,25 @@ export const InspectorPanel: React.FC = () => {
     resetEffects,
   } = useCompositionStore()
 
-  const layerTabs: { id: LayerId; label: string; icon: React.ElementType }[] = [
-    { id: 'visualizer', label: 'Visualizer', icon: Activity },
-    { id: 'background', label: 'Background', icon: ImageIcon },
-    { id: 'text', label: 'Text', icon: Type },
-    { id: 'overlay', label: 'Overlays', icon: Layers },
+  const layerTabs: { id: LayerId; label: string }[] = [
+    { id: 'visualizer', label: 'Visualizer' },
+    { id: 'background', label: 'Background' },
+    { id: 'text', label: 'Text' },
+    { id: 'overlay', label: 'Overlays' },
   ]
 
-  if (isInspectorCollapsed) {
-    return (
-      <aside className="w-10 h-full bg-d2-surface border-l border-d2-border flex flex-col items-center py-2 select-none z-20 shrink-0">
+  return (
+    <div data-inspector-panel data-resizing={isResizing}
+      style={{ width: isInspectorCollapsed ? 40 : inspectorWidth + 4 }}
+      className="panel-size-transition h-full select-none shrink-0 z-20 border-l border-d2-border relative overflow-hidden bg-d2-surface">
+      <aside aria-hidden={!isInspectorCollapsed} ref={node => { if (node) node.inert = !isInspectorCollapsed }}
+        className={`panel-fade absolute inset-0 w-10 h-full flex flex-col items-center py-2 ${isInspectorCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <Tooltip content="Expand Properties Inspector" side="left">
           <button
-            onClick={toggleInspector}
+            ref={expandButtonRef}
+            onClick={handleToggleInspector}
+            aria-label="Expand Inspector"
+            aria-expanded={false}
             className="w-8 h-8 rounded flex items-center justify-center text-d2-textSubtle hover:text-white hover:bg-d2-surfaceElevated transition-colors"
           >
             <PanelRightOpen className="w-4 h-4 text-d2-accent" />
@@ -94,11 +107,9 @@ export const InspectorPanel: React.FC = () => {
           Inspector
         </div>
       </aside>
-    )
-  }
-
-  return (
-    <div className="flex h-full select-none shrink-0 z-20 border-l border-d2-border relative">
+      <div aria-hidden={isInspectorCollapsed} ref={node => { if (node) node.inert = isInspectorCollapsed }}
+        style={{ width: inspectorWidth + 4 }}
+        className={`panel-fade flex h-full ${isInspectorCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
       {/* Vertical Resize Splitter */}
       <div
         onMouseDown={handleResizeMouseDown}
@@ -111,16 +122,18 @@ export const InspectorPanel: React.FC = () => {
       >
       {/* Header */}
       <div className="h-10 px-3 border-b border-d2-border flex items-center justify-between bg-d2-surfaceElevated/30">
-        <div className="flex items-center gap-2">
-          <Sliders className="w-3.5 h-3.5 text-d2-accent" />
-          <h2 className="text-2xs font-bold uppercase tracking-wider text-white">
-            Properties Inspector
+        <div className="flex items-center">
+          <h2 className="text-xs font-medium text-d2-text">
+            Properties
           </h2>
         </div>
 
         <Tooltip content="Collapse Inspector" side="left">
           <button
-            onClick={toggleInspector}
+            ref={collapseButtonRef}
+            onClick={handleToggleInspector}
+            aria-label="Collapse Inspector"
+            aria-expanded={true}
             className="p-1 rounded text-d2-textSubtle hover:text-white hover:bg-d2-surfaceElevated transition-colors"
           >
             <PanelRightClose className="w-3.5 h-3.5" />
@@ -129,24 +142,36 @@ export const InspectorPanel: React.FC = () => {
       </div>
 
       {/* Layer Target Selector */}
-      <div className="p-2 border-b border-d2-borderSubtle bg-d2-canvas/40">
-        <div className="grid grid-cols-4 gap-1 p-0.5 rounded bg-d2-surfaceElevated border border-d2-border">
+       <div className="px-3 border-b border-d2-borderSubtle">
+         <div className="grid grid-cols-4 gap-2" role="tablist" aria-label="Inspector layer">
           {layerTabs.map((tab) => {
-            const Icon = tab.icon
             const isSelected = selectedLayer === tab.id
             return (
               <button
                 key={tab.id}
-                onClick={() => setSelectedLayer(tab.id)}
-                className={`py-1 rounded flex flex-col items-center gap-0.5 text-2xs transition-colors ${
+                 onClick={() => setSelectedLayer(tab.id)}
+                 role="tab"
+                 aria-selected={isSelected}
+                 tabIndex={isSelected ? 0 : -1}
+                 onKeyDown={event => {
+                   const index = layerTabs.findIndex(layer => layer.id === tab.id)
+                   const next = event.key === 'ArrowRight' ? (index + 1) % layerTabs.length
+                     : event.key === 'ArrowLeft' ? (index - 1 + layerTabs.length) % layerTabs.length
+                     : event.key === 'Home' ? 0 : event.key === 'End' ? layerTabs.length - 1 : -1
+                   if (next < 0) return
+                   event.preventDefault()
+                   setSelectedLayer(layerTabs[next].id)
+                   const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+                   buttons?.[next].focus()
+                 }}
+                 className={`h-10 border-b-2 flex items-center justify-center text-2xs transition-colors ${
                   isSelected
-                    ? 'bg-d2-accent text-white shadow-sm font-semibold'
-                    : 'text-d2-textSubtle hover:text-white'
+                     ? 'text-d2-text font-medium border-d2-accent'
+                     : 'border-transparent text-d2-textSubtle hover:text-d2-text'
                 }`}
                 title={tab.label}
               >
-                <Icon className="w-3 h-3" />
-                <span className="text-3xs truncate max-w-full">{tab.label}</span>
+                 <span className="truncate max-w-full">{tab.label}</span>
               </button>
             )
           })}
@@ -296,6 +321,8 @@ export const InspectorPanel: React.FC = () => {
                 />
               </div>
             </CollapsibleSection>
+
+            <BassReactivitySection />
 
             <CollapsibleSection title="Appearance & Shading">
               <div className="flex items-center gap-2 text-2xs text-d2-textSubtle mb-1">
@@ -614,7 +641,8 @@ export const InspectorPanel: React.FC = () => {
           </CollapsibleSection>
         )}
       </div>
-    </aside>
-  </div>
+     </aside>
+     </div>
+   </div>
   )
 }

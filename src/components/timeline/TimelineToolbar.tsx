@@ -1,23 +1,8 @@
-import React, { useState } from 'react'
+import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import {
-  MousePointer,
-  Scissors,
-  Magnet,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  Plus,
-  Undo2,
-  Redo2,
-  Copy,
-  Trash2,
-  Bookmark,
-  SkipBack,
-  SkipForward,
-  ChevronLeft,
-  ChevronRight,
-  Split,
-  ChevronDown,
+  MousePointer, Scissors, Magnet, ZoomIn, ZoomOut, Maximize2,
+  Undo2, Redo2, Copy, Trash2, Bookmark, ChevronLeft, ChevronRight, Split,
 } from 'lucide-react'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { usePreviewStore } from '@/stores/previewStore'
@@ -25,365 +10,115 @@ import { useAudioStore } from '@/stores/audioStore'
 import { TimelineEngine } from '@/engine/timeline/TimelineEngine'
 import { TimecodeUtils } from '@/engine/timeline/TimecodeUtils'
 import { TrackType } from '@/engine/timeline/types'
-import { Tooltip } from '@/components/ui/Tooltip'
+import { Select } from '@/components/ui/Select'
+
+interface ToolButtonProps {
+  label: string
+  icon: React.ElementType
+  onClick: () => void
+  active?: boolean
+  disabled?: boolean
+}
+
+const ToolButton: React.FC<ToolButtonProps> = ({ label, icon: Icon, onClick, active, disabled }) => (
+  <button type="button" title={label} aria-label={label} aria-pressed={active}
+    onClick={onClick} disabled={disabled}
+    className={`w-7 h-7 rounded flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+      active ? 'bg-d2-surfaceActive text-d2-accent' : 'text-d2-textMuted hover:text-white hover:bg-d2-surfaceElevated'
+    }`}>
+    <Icon className="w-3.5 h-3.5" />
+  </button>
+)
+
+// Only this small timecode group subscribes to playback updates.
+const FrameNavigation: React.FC = () => {
+  const currentTime = usePreviewStore((s) => s.currentTime)
+  const fps = useTimelineStore((s) => s.fps)
+  const stepFrame = (direction: 1 | -1) => {
+    const { currentTime: time, duration } = usePreviewStore.getState()
+    useAudioStore.getState().seek(TimelineEngine.getInstance().stepFrame(time, direction, duration, fps))
+  }
+  const jumpMarker = (direction: 1 | -1) => {
+    const { markers } = useTimelineStore.getState()
+    const engine = TimelineEngine.getInstance()
+    const time = direction > 0 ? engine.getNextMarkerTime(currentTime, markers)
+      : engine.getPrevMarkerTime(currentTime, markers)
+    if (time !== null) useAudioStore.getState().seek(time)
+  }
+  return (
+    <div className="flex items-center gap-0.5" data-timeline-timecode>
+      <ToolButton label="Previous marker" icon={Bookmark} onClick={() => jumpMarker(-1)} />
+      <ToolButton label={`Previous frame (1/${fps}s)`} icon={ChevronLeft} onClick={() => stepFrame(-1)} />
+      <span className="font-mono text-2xs text-d2-text tabular-nums px-1 min-w-[84px] text-center">
+        {TimecodeUtils.secondsToTimecode(currentTime, fps)}
+      </span>
+      <ToolButton label={`Next frame (1/${fps}s)`} icon={ChevronRight} onClick={() => stepFrame(1)} />
+      <ToolButton label="Next marker" icon={Bookmark} onClick={() => jumpMarker(1)} />
+    </div>
+  )
+}
+
+const trackOptions: { type: TrackType; label: string }[] = [
+  { type: 'audio-master', label: 'Audio' },
+  { type: 'visualizer', label: 'Visualizer' },
+  { type: 'background', label: 'Background' },
+  { type: 'typography', label: 'Typography' },
+  { type: 'artwork', label: 'Artwork' },
+  { type: 'logo', label: 'Logo / watermark' },
+  { type: 'particles', label: 'Particles' },
+  { type: 'effects', label: 'Effects' },
+]
 
 export const TimelineToolbar: React.FC = () => {
   const {
-    zoom,
-    setZoom,
-    activeTool,
-    setActiveTool,
-    snapEnabled,
-    toggleSnap,
-    selectedClipId,
-    splitAtPlayhead,
-    duplicateClip,
-    deleteClip,
-    addMarker,
-    markers,
-    addTrack,
-    fitToProject,
-    canUndo,
-    canRedo,
-    undo,
-    redo,
-    fps,
-  } = useTimelineStore()
-
-  const { currentTime, duration, setCurrentTime } = usePreviewStore()
-  const audioSeek = useAudioStore((s) => s.seek)
-
-  const [isAddTrackOpen, setIsAddTrackOpen] = useState(false)
-
-  const handleStepFrame = (dir: 1 | -1) => {
-    const nextTime = TimelineEngine.getInstance().stepFrame(
-      currentTime,
-      dir,
-      duration,
-      fps
-    )
-    setCurrentTime(nextTime)
-    audioSeek(nextTime)
-  }
-
-  const handleJumpStart = () => {
-    setCurrentTime(0)
-    audioSeek(0)
-  }
-
-  const handleJumpEnd = () => {
-    setCurrentTime(duration)
-    audioSeek(duration)
-  }
-
-  const handleNextMarker = () => {
-    const nextTime = TimelineEngine.getInstance().getNextMarkerTime(currentTime, markers)
-    if (nextTime !== null) {
-      setCurrentTime(nextTime)
-      audioSeek(nextTime)
-    }
-  }
-
-  const handlePrevMarker = () => {
-    const prevTime = TimelineEngine.getInstance().getPrevMarkerTime(currentTime, markers)
-    if (prevTime !== null) {
-      setCurrentTime(prevTime)
-      audioSeek(prevTime)
-    }
-  }
-
-  const handleFit = () => {
+    zoom, setZoom, activeTool, setActiveTool, snapEnabled, toggleSnap,
+    selectedClipId, splitAtPlayhead, duplicateClip, deleteClip, addMarker,
+    addTrack, fitToProject, canUndo, canRedo, undo, redo,
+  } = useTimelineStore(useShallow((s) => ({
+    zoom: s.zoom, setZoom: s.setZoom, activeTool: s.activeTool, setActiveTool: s.setActiveTool,
+    snapEnabled: s.snapEnabled, toggleSnap: s.toggleSnap, selectedClipId: s.selectedClipId,
+    splitAtPlayhead: s.splitAtPlayhead, duplicateClip: s.duplicateClip, deleteClip: s.deleteClip,
+    addMarker: s.addMarker, addTrack: s.addTrack, fitToProject: s.fitToProject,
+    canUndo: s.canUndo, canRedo: s.canRedo, undo: s.undo, redo: s.redo,
+  })))
+  const fit = () => {
     const container = document.getElementById('d2-timeline-scroll-container')
-    if (container) {
-      fitToProject(duration, container.clientWidth)
-    }
+    if (container) fitToProject(usePreviewStore.getState().duration, container.clientWidth)
   }
-
-  const trackOptions: { type: TrackType; label: string }[] = [
-    { type: 'audio-master', label: 'Audio Track' },
-    { type: 'visualizer', label: 'Visualizer Track' },
-    { type: 'background', label: 'Background Layer' },
-    { type: 'typography', label: 'Typography Track' },
-    { type: 'artwork', label: 'Album Artwork Track' },
-    { type: 'logo', label: 'Logo / Watermark Track' },
-    { type: 'particles', label: 'Particles Track' },
-    { type: 'effects', label: 'Effects Track' },
-  ]
-
   return (
-    <div className="h-9 w-full bg-d2-surfaceElevated/60 border-b border-d2-border px-3 flex items-center justify-between shrink-0 select-none text-xs">
-      {/* Left Group: Tools & Editing Operations */}
-      <div className="flex items-center gap-1.5">
-        {/* Tool Mode Selector */}
-        <div className="flex items-center gap-0.5 p-0.5 rounded bg-d2-surface border border-d2-border">
-          <Tooltip content="Selection Tool (V)" side="top">
-            <button
-              onClick={() => setActiveTool('select')}
-              className={`p-1 rounded transition-colors ${
-                activeTool === 'select'
-                  ? 'bg-d2-accent text-white'
-                  : 'text-d2-textSubtle hover:text-white'
-              }`}
-            >
-              <MousePointer className="w-3.5 h-3.5" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Razor / Blade Tool (C) — Click clip to cut" side="top">
-            <button
-              onClick={() => setActiveTool('blade')}
-              className={`p-1 rounded transition-colors ${
-                activeTool === 'blade'
-                  ? 'bg-d2-accent text-white'
-                  : 'text-d2-textSubtle hover:text-white'
-              }`}
-            >
-              <Scissors className="w-3.5 h-3.5" />
-            </button>
-          </Tooltip>
-        </div>
-
-        <div className="h-4 w-px bg-d2-borderSubtle mx-0.5" />
-
-        {/* Clip Operation Buttons */}
-        <Tooltip content="Split Clip at Playhead" side="top">
-          <button
-            onClick={() => splitAtPlayhead(currentTime)}
-            disabled={!selectedClipId}
-            className={`flex items-center gap-1 px-2 py-1 rounded border text-3xs font-medium transition-colors ${
-              selectedClipId
-                ? 'bg-d2-surface border-d2-border text-white hover:border-d2-accent'
-                : 'bg-d2-surface/40 border-d2-borderSubtle text-d2-textMuted cursor-not-allowed'
-            }`}
-          >
-            <Split className="w-3 h-3 text-cyan-400" />
-            <span>Split</span>
-          </button>
-        </Tooltip>
-
-        <Tooltip content="Duplicate Clip" side="top">
-          <button
-            onClick={() => selectedClipId && duplicateClip(selectedClipId)}
-            disabled={!selectedClipId}
-            className={`p-1 rounded border transition-colors ${
-              selectedClipId
-                ? 'bg-d2-surface border-d2-border text-white hover:border-d2-accent'
-                : 'bg-d2-surface/40 border-d2-borderSubtle text-d2-textMuted cursor-not-allowed'
-            }`}
-          >
-            <Copy className="w-3 h-3" />
-          </button>
-        </Tooltip>
-
-        <Tooltip content="Delete Clip" side="top">
-          <button
-            onClick={() => selectedClipId && deleteClip(selectedClipId)}
-            disabled={!selectedClipId}
-            className={`p-1 rounded border transition-colors ${
-              selectedClipId
-                ? 'bg-d2-surface border-d2-border text-white hover:text-rose-400 hover:border-rose-400'
-                : 'bg-d2-surface/40 border-d2-borderSubtle text-d2-textMuted cursor-not-allowed'
-            }`}
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </Tooltip>
-
-        <div className="h-4 w-px bg-d2-borderSubtle mx-0.5" />
-
-        {/* Snapping Toggle */}
-        <Tooltip content="Toggle Magnetic Snapping" side="top">
-          <button
-            onClick={toggleSnap}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border text-3xs font-medium transition-colors ${
-              snapEnabled
-                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
-                : 'bg-d2-surface border-d2-border text-d2-textSubtle'
-            }`}
-          >
-            <Magnet className="w-3 h-3" />
-            <span>Snap: {snapEnabled ? 'ON' : 'OFF'}</span>
-          </button>
-        </Tooltip>
-
-        {/* Marker Button */}
-        <Tooltip content="Add Project Marker at Playhead (M)" side="top">
-          <button
-            onClick={() => addMarker(currentTime, `Marker ${markers.length + 1}`)}
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-d2-surface border border-d2-border text-3xs text-amber-300 hover:border-amber-400 transition-colors"
-          >
-            <Bookmark className="w-3 h-3" />
-            <span>+ Marker</span>
-          </button>
-        </Tooltip>
-
-        {/* Add Track Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setIsAddTrackOpen(!isAddTrackOpen)}
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-d2-surface border border-d2-border text-3xs text-white hover:border-d2-accent transition-colors"
-          >
-            <Plus className="w-3 h-3 text-cyan-400" />
-            <span>Track</span>
-            <ChevronDown className="w-2.5 h-2.5 text-d2-textSubtle" />
-          </button>
-
-          {isAddTrackOpen && (
-            <div className="absolute left-0 top-full mt-1 w-44 rounded bg-d2-surface border border-d2-border shadow-xl z-50 py-1 divide-y divide-d2-borderSubtle">
-              {trackOptions.map((opt) => (
-                <button
-                  key={opt.type}
-                  onClick={() => {
-                    addTrack(opt.type, opt.label)
-                    setIsAddTrackOpen(false)
-                  }}
-                  className="w-full text-left px-2.5 py-1 text-2xs text-d2-textSubtle hover:text-white hover:bg-d2-surfaceElevated transition-colors"
-                >
-                  + {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+    <div className="min-h-11 w-full bg-d2-surface px-3 py-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 select-none">
+      <div className="flex items-center gap-1">
+        <span className="text-xs font-medium text-d2-text mr-2">Timeline</span>
+        <ToolButton label="Selection tool (V)" icon={MousePointer} active={activeTool === 'select'} onClick={() => setActiveTool('select')} />
+        <ToolButton label="Blade tool (C)" icon={Scissors} active={activeTool === 'blade'} onClick={() => setActiveTool('blade')} />
+        <span className="h-4 w-px bg-d2-border mx-1" />
+        <ToolButton label="Split clip at playhead (Ctrl+K)" icon={Split} disabled={!selectedClipId}
+          onClick={() => splitAtPlayhead(usePreviewStore.getState().currentTime)} />
+        <ToolButton label="Duplicate clip (Ctrl+D)" icon={Copy} disabled={!selectedClipId}
+          onClick={() => { if (selectedClipId) duplicateClip(selectedClipId) }} />
+        <ToolButton label="Delete clip (Delete)" icon={Trash2} disabled={!selectedClipId}
+          onClick={() => { if (selectedClipId) deleteClip(selectedClipId) }} />
+        <span className="h-4 w-px bg-d2-border mx-1" />
+        <ToolButton label="Magnetic snapping (N)" icon={Magnet} active={snapEnabled} onClick={toggleSnap} />
+        <ToolButton label="Add marker (M)" icon={Bookmark} onClick={() => addMarker(usePreviewStore.getState().currentTime)} />
+        <Select ariaLabel="Add track" value="" placeholder="+ Track" compact className="w-[84px]"
+          options={trackOptions.map(option => ({ value: option.type, label: option.label }))}
+          onChange={value => {
+          const option = trackOptions.find(track => track.type === value)
+          if (option) addTrack(option.type, `${option.label} Track`)
+        }} />
       </div>
-
-      {/* Center Group: Frame-Accurate Scrubbing & SMPTE Timecode */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-0.5 bg-d2-surface border border-d2-border rounded px-1 py-0.5">
-          <Tooltip content="Jump to Start (Home)" side="top">
-            <button
-              onClick={handleJumpStart}
-              className="p-1 rounded text-d2-textSubtle hover:text-white"
-            >
-              <SkipBack className="w-3 h-3" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Previous Marker" side="top">
-            <button
-              onClick={handlePrevMarker}
-              className="p-0.5 rounded text-d2-textSubtle hover:text-white"
-            >
-              <Bookmark className="w-2.5 h-2.5 text-amber-400/80" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Previous Frame (1/30s)" side="top">
-            <button
-              onClick={() => handleStepFrame(-1)}
-              className="p-1 rounded text-d2-textSubtle hover:text-white"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-          </Tooltip>
-
-          {/* Timecode display */}
-          <div className="px-2 py-0.5 bg-d2-canvas rounded border border-d2-borderSubtle text-2xs font-mono font-bold text-cyan-400 tracking-wider">
-            {TimecodeUtils.secondsToTimecode(currentTime, fps)}
-          </div>
-
-          <Tooltip content="Next Frame (1/30s)" side="top">
-            <button
-              onClick={() => handleStepFrame(1)}
-              className="p-1 rounded text-d2-textSubtle hover:text-white"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Next Marker" side="top">
-            <button
-              onClick={handleNextMarker}
-              className="p-0.5 rounded text-d2-textSubtle hover:text-white"
-            >
-              <Bookmark className="w-2.5 h-2.5 text-amber-400/80" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Jump to End (End)" side="top">
-            <button
-              onClick={handleJumpEnd}
-              className="p-1 rounded text-d2-textSubtle hover:text-white"
-            >
-              <SkipForward className="w-3 h-3" />
-            </button>
-          </Tooltip>
-        </div>
-      </div>
-
-      {/* Right Group: Undo/Redo & Zoom Controls */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-0.5">
-          <Tooltip content="Undo Timeline Action (Ctrl+Z)" side="top">
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              className={`p-1 rounded border transition-colors ${
-                canUndo
-                  ? 'bg-d2-surface border-d2-border text-white hover:border-d2-accent'
-                  : 'bg-d2-surface/40 border-d2-borderSubtle text-d2-textMuted cursor-not-allowed'
-              }`}
-            >
-              <Undo2 className="w-3 h-3" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Redo Timeline Action (Ctrl+Y)" side="top">
-            <button
-              onClick={redo}
-              disabled={!canRedo}
-              className={`p-1 rounded border transition-colors ${
-                canRedo
-                  ? 'bg-d2-surface border-d2-border text-white hover:border-d2-accent'
-                  : 'bg-d2-surface/40 border-d2-borderSubtle text-d2-textMuted cursor-not-allowed'
-              }`}
-            >
-              <Redo2 className="w-3 h-3" />
-            </button>
-          </Tooltip>
-        </div>
-
-        <div className="h-4 w-px bg-d2-borderSubtle mx-0.5" />
-
-        {/* Zoom Slider & Fit */}
-        <div className="flex items-center gap-1.5 bg-d2-surface border border-d2-border rounded px-2 py-0.5">
-          <Tooltip content="Fit Entire Project to Window" side="top">
-            <button
-              onClick={handleFit}
-              className="p-0.5 rounded text-d2-textSubtle hover:text-cyan-400"
-            >
-              <Maximize2 className="w-3 h-3" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Zoom Out" side="top">
-            <button
-              onClick={() => setZoom(zoom - 3)}
-              className="text-d2-textSubtle hover:text-white"
-            >
-              <ZoomOut className="w-3 h-3" />
-            </button>
-          </Tooltip>
-
-          <input
-            type="range"
-            min={4}
-            max={80}
-            step={2}
-            value={zoom}
-            onChange={(e) => setZoom(parseFloat(e.target.value))}
-            className="w-16 h-1 bg-d2-surfaceElevated rounded appearance-none cursor-pointer accent-d2-accent"
-          />
-
-          <Tooltip content="Zoom In" side="top">
-            <button
-              onClick={() => setZoom(zoom + 3)}
-              className="text-d2-textSubtle hover:text-white"
-            >
-              <ZoomIn className="w-3 h-3" />
-            </button>
-          </Tooltip>
-        </div>
+      <FrameNavigation />
+      <div className="flex items-center gap-1">
+        <ToolButton label="Undo timeline action (Ctrl+Z)" icon={Undo2} disabled={!canUndo} onClick={undo} />
+        <ToolButton label="Redo timeline action (Ctrl+Y)" icon={Redo2} disabled={!canRedo} onClick={redo} />
+        <span className="h-4 w-px bg-d2-border mx-1" />
+        <ToolButton label="Fit project to timeline" icon={Maximize2} onClick={fit} />
+        <ToolButton label="Zoom out" icon={ZoomOut} onClick={() => setZoom(zoom - 3)} />
+        <input type="range" aria-label="Timeline zoom" min={4} max={80} step={2} value={zoom}
+          onChange={(event) => setZoom(Number(event.target.value))}
+          className="w-16 h-1 bg-d2-surfaceActive rounded appearance-none cursor-pointer" />
+        <ToolButton label="Zoom in" icon={ZoomIn} onClick={() => setZoom(zoom + 3)} />
       </div>
     </div>
   )

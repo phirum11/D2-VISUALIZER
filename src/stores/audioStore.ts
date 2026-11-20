@@ -40,10 +40,11 @@ export const useAudioStore = create<AudioState>((set, get) => {
   engine.addListener({
     onTimeUpdate: (currentTime, duration) => {
       set({ currentTime, duration })
-      usePreviewStore.getState().setCurrentTime(currentTime)
-      if (duration > 0) {
-        usePreviewStore.getState().setDuration(duration)
-      }
+      usePreviewStore.setState((s) => {
+        const nextDuration = duration > 0 ? duration : s.duration
+        return s.currentTime === currentTime && s.duration === nextDuration
+          ? s : { currentTime, duration: nextDuration }
+      })
     },
     onStatusChange: (status) => {
       set({ status })

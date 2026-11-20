@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useId, useState } from 'react'
 import { ChevronRight, RotateCcw } from 'lucide-react'
 
 interface CollapsibleSectionProps {
@@ -15,20 +15,23 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   children,
 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen)
+  const contentId = useId()
 
   return (
     <div className="border-b border-d2-borderSubtle">
-      <div className="flex items-center justify-between py-2 px-3 hover:bg-d2-surfaceElevated/50 transition-colors cursor-pointer select-none">
+      <div className="flex items-center justify-between py-2.5 px-3 hover:bg-d2-surfaceElevated/50 transition-colors select-none">
         <button
           onClick={() => setIsOpen(!isOpen)}
+          aria-expanded={isOpen}
+          aria-controls={contentId}
           className="flex items-center gap-1.5 flex-1 text-left"
         >
           <ChevronRight
-            className={`w-3.5 h-3.5 text-d2-textSubtle transition-transform duration-150 ${
-              isOpen ? 'rotate-90 text-d2-accent' : ''
+            className={`w-3.5 h-3.5 text-d2-textSubtle transition-transform duration-200 motion-reduce:transition-none ${
+              isOpen ? 'rotate-90 text-d2-textMuted' : ''
             }`}
           />
-          <span className="text-2xs font-semibold tracking-wider text-d2-text uppercase">
+          <span className="text-xs font-medium text-d2-text">
             {title}
           </span>
         </button>
@@ -48,7 +51,12 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         )}
       </div>
 
-      {isOpen && <div className="px-3 pb-3 space-y-2">{children}</div>}
+      <div id={contentId} data-collapsible-content className="collapse-content" data-open={isOpen}
+        aria-hidden={!isOpen} ref={node => { if (node) node.inert = !isOpen }}>
+        <div className="min-h-0 overflow-hidden">
+          <div className="px-3 pb-3 space-y-2">{children}</div>
+        </div>
+      </div>
     </div>
   )
 }

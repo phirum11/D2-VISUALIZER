@@ -1,8 +1,11 @@
 import { create } from 'zustand'
 import { OverlayElement } from '@/engine/overlay/types'
 import { TYPOGRAPHY_PRESETS } from '@/engine/overlay/presets'
+import { BassReactivityConfig, normalizeBassConfig } from '@/engine/audio/BassReactivity'
 
 export interface VisualizerConfig {
+  presetId?: string
+  bassReactivity?: BassReactivityConfig
   type: string
   barCount: number
   thickness: number
@@ -572,7 +575,9 @@ export const useCompositionStore = create<CompositionState>((set, get) => ({
     set({
       past: [...past.slice(-20), { visualizer, background, text, effects, ambientParticles, cinematicMotion, layers, overlays }],
       future: [],
-      visualizer: { ...visualizer, ...patch },
+      visualizer: { ...visualizer, ...patch,
+        ...(patch.bassReactivity ? { bassReactivity: normalizeBassConfig(patch.bassReactivity) } : {}),
+      },
     })
   },
 

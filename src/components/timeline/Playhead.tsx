@@ -47,6 +47,7 @@ export const Playhead: React.FC = () => {
 
   return (
     <div
+      data-playhead
       className="absolute top-0 bottom-0 pointer-events-none z-30"
       style={{ left: `${positionX}px` }}
     >

@@ -3,6 +3,10 @@ import { VisualizerRegistry } from '@/engine/visualizers/VisualizerRegistry'
 import { AudioEngine } from '@/engine/audio/AudioEngine'
 import { AudioFrameData } from '@/engine/audio/FrequencyExtractor'
 import { VisualizerConfig } from '@/stores/compositionStore'
+import { IVisualizerPlugin } from '@/engine/visualizers/types'
+import { observeCanvasFrames } from '@/engine/render/FrameScheduler'
+import { useExportStore } from '@/stores/exportStore'
+import { BassEnvelopeFollower } from '@/engine/audio/BassReactivity'
 
 interface VisualizerThumbCanvasProps {
   pluginId: string
@@ -27,24 +31,11 @@ export const VisualizerThumbCanvas: React.FC<VisualizerThumbCanvasProps> = ({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    let animId: number
-    let isVisible = true
-
-    // Pause rendering when thumbnail is not visible in scroll container
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          isVisible = entry.isIntersecting
-        })
-      },
-      { threshold: 0.05 }
-    )
-    observer.observe(canvas)
-
     const registry = VisualizerRegistry.getInstance()
-    const plugin = registry.getVisualizer(pluginId) || registry.getVisualizer('spectrum-bars')
+    let plugin: IVisualizerPlugin | undefined
 
-    const dpr = Math.min(2, window.devicePixelRatio || 1)
+    // Cards display at 64x44 CSS pixels, not the logical visualization size.
+    const dpr = Math.min(1, (canvas.getBoundingClientRect().width / 240) * (window.devicePixelRatio || 1)) || 1
     const cssWidth = 240
     const cssHeight = 110
 
@@ -53,6 +44,9 @@ export const VisualizerThumbCanvas: React.FC<VisualizerThumbCanvasProps> = ({
 
     const dummyFreqs = new Float32Array(512)
     const dummyTime = new Float32Array(512)
+    const dummyRaw = new Uint8Array(512)
+    const dummyTimeBytes = new Uint8Array(512)
+    const bassFollower = new BassEnvelopeFollower()
 
     const primaryColor = presetConfig?.primaryColor || '#6366f1'
     const accentColor = presetConfig?.accentColor || '#06b6d4'
@@ -66,18 +60,19 @@ export const VisualizerThumbCanvas: React.FC<VisualizerThumbCanvasProps> = ({
     // Internal simulation angle for 3D procedural previews
     let sphereRot = 0
 
-    const render = () => {
-      if (!isVisible) {
-        animId = requestAnimationFrame(render)
-        return
+    const render = (frameTimestamp: number) => {
+      if (useExportStore.getState().isExporting) return
+      if (!plugin && renderType !== '3d') {
+        // Thumbnail state must not resize or advance the main preview's plugin.
+        plugin = registry.createVisualizer(pluginId) || registry.createVisualizer('spectrum-bars')
       }
 
-      const now = performance.now() / 1000
+      const now = frameTimestamp / 1000
       const audioEngine = AudioEngine.getInstance()
       let audioFrame: AudioFrameData
 
       if (audioEngine.getStatus() === 'playing') {
-        audioFrame = audioEngine.getLiveFrameData()
+        audioFrame = audioEngine.getLiveFrameData(frameTimestamp)
       } else {
         // High-fidelity procedural wave simulation for idle preview
         const bassPulse = Math.sin(now * 3.8) * 0.35 + 0.65
@@ -88,12 +83,13 @@ export const VisualizerThumbCanvas: React.FC<VisualizerThumbCanvasProps> = ({
           const harmonic = Math.sin(now * 4 - norm * 10) * 0.4 + 0.6
           dummyFreqs[i] = Math.max(0.04, Math.pow(1 - norm, 0.65) * harmonic * bassPulse)
           dummyTime[i] = Math.sin(now * 7 + norm * 18) * 0.5 * midPulse
+          dummyRaw[i] = Math.round(dummyFreqs[i] * 255)
         }
 
         audioFrame = {
-          rawFrequencies: new Uint8Array(512),
+          rawFrequencies: dummyRaw,
           normalizedFrequencies: dummyFreqs,
-          timeDomainData: new Uint8Array(512),
+          timeDomainData: dummyTimeBytes,
           normalizedTimeDomain: dummyTime,
           bands: {
             subBass: bassPulse,
@@ -110,6 +106,10 @@ export const VisualizerThumbCanvas: React.FC<VisualizerThumbCanvasProps> = ({
           trebleEnergy: 0.35,
         }
       }
+
+      audioFrame = bassFollower.apply(audioFrame, presetConfig?.bassReactivity, now)
+      const bassResponse = bassFollower.getResponse().envelope
+      const bassConfig = bassFollower.getConfig()
 
       ctx.save()
       ctx.scale(dpr, dpr)
@@ -132,7 +132,7 @@ export const VisualizerThumbCanvas: React.FC<VisualizerThumbCanvasProps> = ({
       if (renderType === '3d' || pluginId === '3d-sphere' || pluginId === '3d-landscape') {
         // High-performance procedural 2D wireframe preview for 3D visualizers to prevent WebGL context contention
         if (pluginId === '3d-sphere') {
-          sphereRot += 0.02
+          sphereRot = now * 1.2
           const cx = cssWidth / 2
           const cy = cssHeight / 2
           const r = Math.min(cssWidth, cssHeight) * 0.28 * (1 + audioFrame.bassEnergy * 0.2)
@@ -222,13 +222,13 @@ export const VisualizerThumbCanvas: React.FC<VisualizerThumbCanvasProps> = ({
             spacing,
             sensitivity,
             smoothing,
-            glow,
+            glow: glow + bassResponse * bassConfig.glowBoost,
             primaryColor,
             accentColor,
             positionX: 0,
             positionY: 0,
-            scale: 0.68,
-            rotation: 0,
+            scale: 0.68 * (presetConfig?.scale ?? 1) * (1 + bassResponse * bassConfig.pulseScale),
+            rotation: presetConfig?.rotation ?? 0,
             opacity: 1,
           },
           effects: {
@@ -254,14 +254,13 @@ export const VisualizerThumbCanvas: React.FC<VisualizerThumbCanvasProps> = ({
       }
 
       ctx.restore()
-      animId = requestAnimationFrame(render)
     }
 
-    animId = requestAnimationFrame(render)
+    const stop = observeCanvasFrames(canvas, render, isActive ? 24 : 12)
 
     return () => {
-      observer.disconnect()
-      if (animId) cancelAnimationFrame(animId)
+      stop()
+      plugin?.dispose()
     }
   }, [pluginId, renderType, presetConfig, isActive])
 

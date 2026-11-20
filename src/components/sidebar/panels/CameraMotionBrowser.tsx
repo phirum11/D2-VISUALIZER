@@ -20,6 +20,7 @@ import {
 import { CameraMotionThumbCanvas } from './CameraMotionThumbCanvas'
 import { Slider } from '@/components/ui/Slider'
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
+import { ScrollableCategoryStrip } from '@/components/ui/ScrollableCategoryStrip'
 
 const CATEGORIES: Array<'All' | CameraPresetCategory> = [
   'All',
@@ -159,7 +160,7 @@ export const CameraMotionBrowser: React.FC = () => {
         </div>
 
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+        <ScrollableCategoryStrip label="Camera motion categories">
           {CATEGORIES.map((cat) => {
             const isCatSelected = selectedCategory === cat
             const count = categoryCounts[cat] || 0
@@ -167,9 +168,10 @@ export const CameraMotionBrowser: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-3xs font-medium whitespace-nowrap transition-all ${
+                aria-pressed={isCatSelected}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-3xs font-medium whitespace-nowrap transition-colors ${
                   isCatSelected
-                    ? 'bg-cyan-600 text-white font-semibold shadow-xs ring-1 ring-cyan-400/50'
+                    ? 'bg-d2-surfaceActive text-d2-accent font-semibold border border-d2-accent/40'
                     : 'bg-d2-surface border border-d2-borderSubtle text-d2-textSubtle hover:text-white hover:border-d2-border hover:bg-d2-surfaceElevated/60'
                 }`}
               >
@@ -186,7 +188,7 @@ export const CameraMotionBrowser: React.FC = () => {
               </button>
             )
           })}
-        </div>
+        </ScrollableCategoryStrip>
       </div>
 
       {/* Main Scrollable Body */}

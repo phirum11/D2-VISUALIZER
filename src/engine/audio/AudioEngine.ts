@@ -20,6 +20,8 @@ export class AudioEngine {
   private gainNode: GainNode
   private analyserNode: AnalyserNode
   private extractor: FrequencyExtractor
+  private liveFrame: AudioFrameData | null = null
+  private liveFrameTimestamp: number | null = null
 
   // Active audio metadata & buffer
   private currentMetadata: AudioMetadata | null = null
@@ -342,8 +344,14 @@ export class AudioEngine {
     return this.extractor
   }
 
-  public getLiveFrameData(): AudioFrameData {
-    return this.extractor.getFrameData()
+  public getLiveFrameData(frameTimestamp?: number): AudioFrameData {
+    // All scheduled consumers share one FFT sample and one smoothing update per frame.
+    if (frameTimestamp !== undefined && this.liveFrame && this.liveFrameTimestamp === frameTimestamp) {
+      return this.liveFrame
+    }
+    this.liveFrame = this.extractor.getFrameData()
+    this.liveFrameTimestamp = frameTimestamp ?? null
+    return this.liveFrame
   }
 
   public getSampleRate(): number {

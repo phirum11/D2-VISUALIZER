@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { useAppStore } from '@/stores/appStore'
 import { useAudioStore } from '@/stores/audioStore'
+import { useHardwareStore } from '@/stores/hardwareStore'
 
 export const App: React.FC = () => {
   const { setAppInfo } = useAppStore()
@@ -29,6 +30,7 @@ export const App: React.FC = () => {
     }
 
     initSystem()
+    void useHardwareStore.getState().loadSaved()
   }, [setAppInfo])
 
   return <MainLayout />

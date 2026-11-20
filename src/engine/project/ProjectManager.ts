@@ -15,6 +15,7 @@ import { ProjectTemplate } from '@/engine/templates/types'
 import { TrackManager } from '@/engine/timeline/TrackManager'
 import { BackgroundManager } from '@/engine/background/BackgroundManager'
 import { OverlayRenderer } from '@/engine/overlay/OverlayRenderer'
+import { normalizeBassConfig } from '@/engine/audio/BassReactivity'
 
 export class ProjectManager {
   /**
@@ -159,7 +160,7 @@ export class ProjectManager {
 
     // 1. Restore Composition Store
     useCompositionStore.setState({
-      visualizer: { ...proj.composition.visualizer },
+      visualizer: { ...proj.composition.visualizer, bassReactivity: normalizeBassConfig(proj.composition.visualizer.bassReactivity) },
       background: { ...proj.composition.background },
       text: { ...proj.composition.text },
       effects: { ...proj.composition.effects },

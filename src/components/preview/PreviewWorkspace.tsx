@@ -10,7 +10,7 @@ export const PreviewWorkspace: React.FC = () => {
       <PreviewHeader />
 
       {/* Main Responsive Canvas Viewport */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
         <PreviewCanvas />
       </div>
 

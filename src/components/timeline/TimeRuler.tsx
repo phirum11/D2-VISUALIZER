@@ -1,4 +1,5 @@
 import React, { useRef } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useAudioStore } from '@/stores/audioStore'
@@ -7,8 +8,11 @@ import { TimecodeUtils } from '@/engine/timeline/TimecodeUtils'
 
 export const TimeRuler: React.FC = () => {
   const rulerRef = useRef<HTMLDivElement>(null)
-  const { zoom, markers, fps, deleteMarker } = useTimelineStore()
-  const { duration, setCurrentTime } = usePreviewStore()
+  const { zoom, markers, fps, deleteMarker } = useTimelineStore(useShallow((s) => ({
+    zoom: s.zoom, markers: s.markers, fps: s.fps, deleteMarker: s.deleteMarker,
+  })))
+  const duration = usePreviewStore((s) => s.duration)
+  const setCurrentTime = usePreviewStore((s) => s.setCurrentTime)
   const audioSeek = useAudioStore((s) => s.seek)
 
   const isScrubbingRef = useRef(false)
@@ -82,7 +86,7 @@ export const TimeRuler: React.FC = () => {
       ref={rulerRef}
       onMouseDown={handleMouseDown}
       style={{ width: `${totalWidth}px` }}
-      className="h-8 bg-d2-surface border-b border-d2-border relative cursor-pointer select-none"
+      className="h-10 bg-d2-surface border-b border-d2-border relative cursor-pointer select-none"
     >
       {/* Ticks and Timecode Labels */}
       {renderTicks()}
@@ -109,8 +113,7 @@ export const TimeRuler: React.FC = () => {
           >
             <div
               style={{
-                backgroundColor: m.color,
-                boxShadow: `0 0 8px ${m.color}50`,
+                backgroundColor: 'var(--color-surface-active)',
               }}
               className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold text-white tracking-wide shadow-xs flex items-center gap-1 group-hover:brightness-125 transition-all"
             >
@@ -118,8 +121,8 @@ export const TimeRuler: React.FC = () => {
             </div>
             <div
               style={{
-                backgroundColor: m.color,
-                borderColor: 'rgba(255,255,255,0.7)',
+                backgroundColor: 'var(--color-accent)',
+                borderColor: 'var(--color-accent-cyan)',
               }}
               className="w-2 h-2 rotate-45 border-[1px] -mt-1 shadow-xs"
             />

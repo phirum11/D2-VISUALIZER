@@ -68,7 +68,7 @@ export const Slider: React.FC<SliderProps> = ({
     defaultValue !== undefined && Math.abs(value - defaultValue) > 0.001
 
   return (
-    <div className="space-y-1 py-1">
+    <div className="space-y-1.5 py-1.5">
       <div className="flex items-center justify-between text-2xs">
         <span className="text-d2-textMuted font-medium truncate max-w-[150px]">{label}</span>
         <div className="flex items-center gap-1.5">
@@ -118,9 +118,10 @@ export const Slider: React.FC<SliderProps> = ({
           step={step}
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="w-full h-1.5 bg-d2-surfaceElevated rounded-lg appearance-none cursor-pointer accent-d2-accent focus:outline-none hover:h-2 transition-all"
+          aria-label={label}
+          className="w-full h-1 bg-d2-surfaceElevated rounded appearance-none cursor-pointer accent-d2-accent"
           style={{
-            background: `linear-gradient(to right, #6366f1 ${percentage}%, #1e2433 ${percentage}%)`,
+            background: `linear-gradient(to right, var(--color-accent) ${percentage}%, var(--color-border) ${percentage}%)`,
           }}
         />
       </div>

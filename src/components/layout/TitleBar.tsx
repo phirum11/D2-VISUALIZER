@@ -10,6 +10,7 @@ import {
   RotateCw,
   Settings,
   ChevronDown,
+  Download,
 } from 'lucide-react'
 import { useAppStore } from '@/stores/appStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -22,7 +23,7 @@ import { Tooltip } from '@/components/ui/Tooltip'
 export const TitleBar: React.FC = () => {
   const { version, isMaximized, setIsMaximized } = useAppStore()
   const { projectName, saveStatus, setProjectBrowserOpen } = useProjectStore()
-  const { setSettingsOpen } = useUIStore()
+  const { setSettingsOpen, exportOpen, setExportOpen } = useUIStore()
   const { undo, redo, past, future } = useCompositionStore()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -37,17 +38,17 @@ export const TitleBar: React.FC = () => {
   }, [setIsMaximized])
 
   return (
-    <header className="h-9 w-full bg-d2-surface border-b border-d2-border flex items-center justify-between select-none app-drag-region px-2 z-50">
+    <header className="h-11 w-full bg-d2-surface border-b border-d2-border flex items-center justify-between select-none app-drag-region px-3 z-50">
       {/* Left: Branding & Project Menu Button */}
       <div className="flex items-center gap-1 app-no-drag">
         <div className="flex items-center gap-2 px-1.5 py-1">
-          <div className="flex items-center justify-center w-5 h-5 rounded-md bg-gradient-to-tr from-d2-accent to-cyan-400 text-white shadow-xs">
+          <div className="flex items-center justify-center w-6 h-6 rounded bg-d2-surfaceActive border border-d2-border text-white">
             <Activity className="w-3.5 h-3.5" />
           </div>
-          <span className="text-xs font-bold tracking-wider text-white uppercase font-sans">
+          <span className="text-xs font-semibold tracking-wide text-white font-sans">
             D2 Visualizer
           </span>
-          <span className="text-3xs px-1.5 py-0.5 rounded-full bg-d2-accent/15 border border-d2-accent/30 text-indigo-300 font-mono font-semibold">
+          <span className="text-3xs text-d2-textSubtle font-mono ml-1">
             v{version}
           </span>
         </div>
@@ -94,10 +95,10 @@ export const TitleBar: React.FC = () => {
       <div className="flex items-center gap-2 app-drag-region">
         <button
           onClick={() => setProjectBrowserOpen(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-d2-surfaceElevated/60 hover:bg-d2-surfaceElevated border border-d2-borderSubtle hover:border-d2-border transition-all app-no-drag group"
+          className="flex items-center gap-2 px-2.5 py-1 rounded hover:bg-d2-surfaceElevated transition-colors app-no-drag group"
           title="Click to open Project Hub"
         >
-          <Disc3 className="w-3.5 h-3.5 text-d2-accent group-hover:rotate-45 transition-transform" />
+          <Disc3 className="w-3.5 h-3.5 text-d2-textMuted" />
           <span className="text-xs font-semibold text-white/90 group-hover:text-white">
             {projectName}
           </span>
@@ -106,31 +107,31 @@ export const TitleBar: React.FC = () => {
         {/* Save Status Indicator */}
         <div className="text-3xs font-mono app-no-drag">
           {saveStatus === 'saved' && (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <div className="flex items-center gap-1.5 px-2 py-0.5 text-d2-textSubtle">
+              <span className="w-1 h-1 rounded-full bg-d2-textMuted" />
               <span className="font-medium">Saved</span>
             </div>
           )}
           {saveStatus === 'saving' && (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+            <div className="flex items-center gap-1.5 px-2 py-0.5 text-d2-textMuted">
+              <span className="w-1 h-1 rounded-full bg-d2-textMuted animate-pulse" />
               <span className="font-medium">Saving...</span>
             </div>
           )}
           {saveStatus === 'unsaved' && (
             <div
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 cursor-pointer hover:bg-amber-500/20 transition-colors"
+              className="flex items-center gap-1.5 px-2 py-0.5 text-d2-textMuted cursor-pointer hover:text-white transition-colors"
               title="Unsaved changes (Ctrl+S to save)"
               onClick={() => useProjectStore.getState().saveProject()}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span className="w-1 h-1 rounded-full bg-d2-text" />
               <span className="font-medium">Unsaved</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Right: Audio Monitor, Settings & Windows Window Controls */}
+      {/* Right: Audio Monitor, Export, Settings & Window Controls */}
       <div className="flex items-center gap-0.5 app-no-drag">
         {/* Live Audio FFT Monitor button */}
         <Tooltip content="Live Audio FFT Monitor" side="bottom">
@@ -140,6 +141,14 @@ export const TitleBar: React.FC = () => {
             aria-label="Audio Monitor"
           >
             <Activity className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
+
+        <Tooltip content="Export Video" side="bottom">
+          <button type="button" onClick={() => setExportOpen(true)}
+            aria-label="Export Video" aria-haspopup="dialog" aria-expanded={exportOpen}
+            className="w-8 h-8 flex items-center justify-center rounded hover:bg-d2-surfaceElevated text-d2-accent hover:text-d2-accentHover transition-colors">
+            <Download className="w-3.5 h-3.5" />
           </button>
         </Tooltip>
 

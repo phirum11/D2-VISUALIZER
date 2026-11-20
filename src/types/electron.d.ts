@@ -1,3 +1,5 @@
+import type { HardwareProfile } from '../engine/performance/HardwareRecommendation'
+
 export interface OpenAudioResult {
   canceled: boolean
   filePath?: string
@@ -31,6 +33,8 @@ export interface ElectronAPI {
   getVersion: () => Promise<string>
   getPlatform: () => Promise<string>
   ping: () => Promise<string>
+  hardwareGetSaved: () => Promise<HardwareProfile | null>
+  hardwareCheckOnce: () => Promise<HardwareProfile>
 
   // Window management
   minimize: () => Promise<void>

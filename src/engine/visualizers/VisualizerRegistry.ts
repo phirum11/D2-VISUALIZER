@@ -129,6 +129,13 @@ export class VisualizerRegistry {
     return this.plugins.get(id)
   }
 
+  public createVisualizer(id: string): IVisualizerPlugin | undefined {
+    const plugin = this.plugins.get(id)
+    if (!plugin) return undefined
+    const Plugin = plugin.constructor as new () => IVisualizerPlugin
+    return new Plugin()
+  }
+
   /**
    * Sets the active visualizer, safely disposing previous 3D contexts if switching
    */

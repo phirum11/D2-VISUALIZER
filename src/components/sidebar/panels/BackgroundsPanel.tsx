@@ -152,7 +152,7 @@ export const BackgroundsPanel: React.FC = () => {
                 }
                 className={`flex flex-col items-center gap-1 py-1.5 rounded text-2xs font-medium transition-colors ${
                   isSelected
-                    ? 'bg-d2-accent text-white shadow-sm'
+                    ? 'bg-d2-surfaceActive text-d2-accent ring-1 ring-d2-accent/50'
                     : 'text-d2-textSubtle hover:text-white hover:bg-d2-surfaceElevated'
                 }`}
               >
@@ -201,7 +201,7 @@ export const BackgroundsPanel: React.FC = () => {
                         onClick={() => updateBackground({ sizing: mode })}
                         className={`py-1 rounded text-3xs font-mono uppercase transition-colors ${
                           background.sizing === mode
-                            ? 'bg-d2-accent text-white font-bold'
+                            ? 'bg-d2-surfaceActive text-d2-accent font-bold'
                             : 'text-d2-textSubtle hover:text-white'
                         }`}
                       >

@@ -186,6 +186,7 @@ export class AudioAnalysisCache {
       const trebleEnergy = (smoothedBands.highMid * 0.3 + smoothedBands.treble * 0.7)
 
       this.frames.push({
+        sampleRate: this.sampleRate,
         rawFrequencies,
         normalizedFrequencies,
         timeDomainData: rawTimeDomain,
@@ -258,6 +259,7 @@ export class AudioAnalysisCache {
       }
 
       this.frames.push({
+        sampleRate: this.sampleRate,
         rawFrequencies,
         normalizedFrequencies,
         timeDomainData: rawTimeDomain,

@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import {
-  X,
   Sliders,
   Cpu,
   Video,
@@ -9,17 +8,23 @@ import {
   Gauge,
   Keyboard,
   ShieldCheck,
-  Zap,
 } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore'
 import { useAppStore } from '@/stores/appStore'
 import { usePreviewStore, PreviewQuality } from '@/stores/previewStore'
 import { useProjectStore } from '@/stores/projectStore'
+import { useExportStore } from '@/stores/exportStore'
+import { Switch } from '@/components/ui/Switch'
+import { Modal } from '@/components/ui/Modal'
+import { Select } from '@/components/ui/Select'
+import { HardwareCheck } from './HardwareCheck'
+import { useHardwareStore } from '@/stores/hardwareStore'
 
 export const SettingsModal: React.FC = () => {
   const { settingsOpen, setSettingsOpen } = useUIStore()
   const { version, platform } = useAppStore()
   const { previewQuality, setPreviewQuality } = usePreviewStore()
+  const recommendedMode = useHardwareStore(state => state.profile?.recommendedMode)
   const {
     autoSaveEnabled,
     autoSaveIntervalSeconds,
@@ -33,34 +38,26 @@ export const SettingsModal: React.FC = () => {
   // Audio & Export settings
   const [fftSize, setFftSize] = useState('2048')
   const [sampleRate, setSampleRate] = useState('48000')
-  const [hwAccel, setHwAccel] = useState(true)
+  const videoCodec = useExportStore(state => state.videoCodec)
+  const setVideoCodec = useExportStore(state => state.setVideoCodec)
   const [defaultFormat, setDefaultFormat] = useState('mp4')
 
   if (!settingsOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in-0">
-      <div className="w-full max-w-3xl bg-d2-surface border border-d2-border rounded-xl shadow-2xl overflow-hidden flex flex-col h-[560px]">
-        {/* Header */}
-        <div className="h-12 border-b border-d2-border px-5 flex items-center justify-between bg-d2-surfaceElevated/50">
-          <div className="flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-d2-accent" />
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-              Application Settings & Preferences
-            </h2>
-          </div>
-          <button
-            onClick={() => setSettingsOpen(false)}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-d2-surfaceElevated text-d2-textMuted hover:text-white transition-colors"
-          >
-            <X className="w-4 h-4" />
+    <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Application Settings & Preferences" icon={Sliders}
+      footer={
+        <div className="flex justify-end">
+          <button type="button" onClick={() => setSettingsOpen(false)}
+            className="px-4 py-1.5 rounded-md bg-d2-surfaceElevated hover:bg-d2-surfaceActive border border-d2-border text-xs font-medium text-d2-text transition-colors">
+            Close
           </button>
         </div>
-
+      }>
         {/* Content Body with Left Nav */}
         <div className="flex-1 flex overflow-hidden">
           {/* Tabs Nav */}
-          <div className="w-48 border-r border-d2-border p-3 space-y-1 bg-d2-canvas/40 select-none">
+          <div className="w-48 shrink-0 overflow-y-auto border-r border-d2-border p-3 space-y-1 bg-d2-canvas/40 select-none">
             <button
               onClick={() => setActiveTab('general')}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium transition-colors ${
@@ -135,7 +132,7 @@ export const SettingsModal: React.FC = () => {
           </div>
 
           {/* Tab Pane */}
-          <div className="flex-1 p-6 overflow-y-auto space-y-6">
+          <div className="flex-1 min-w-0 p-6 overflow-y-auto space-y-6">
             {/* GENERAL TAB */}
             {activeTab === 'general' && (
               <div className="space-y-4">
@@ -154,13 +151,11 @@ export const SettingsModal: React.FC = () => {
                         Periodically writes crash-recovery snapshots to protect your work
                       </div>
                     </div>
-                    <input
-                      type="checkbox"
+                    <Switch label="Automatic Background Saving"
                       checked={autoSaveEnabled}
-                      onChange={(e) =>
-                        setAutoSaveSettings(e.target.checked, autoSaveIntervalSeconds)
+                      onChange={(checked) =>
+                        setAutoSaveSettings(checked, autoSaveIntervalSeconds)
                       }
-                      className="w-4 h-4 accent-d2-accent rounded cursor-pointer"
                     />
                   </div>
 
@@ -173,19 +168,18 @@ export const SettingsModal: React.FC = () => {
                         Frequency of automated project snapshots
                       </div>
                     </div>
-                    <select
+                    <Select ariaLabel="Auto-Save Interval" className="w-56 shrink-0"
                       value={autoSaveIntervalSeconds.toString()}
-                      onChange={(e) =>
-                        setAutoSaveSettings(autoSaveEnabled, parseInt(e.target.value, 10))
+                      onChange={(value) =>
+                        setAutoSaveSettings(autoSaveEnabled, parseInt(value, 10))
                       }
                       disabled={!autoSaveEnabled}
-                      className="rounded bg-d2-surface border border-d2-border px-2.5 py-1 text-xs text-white disabled:opacity-50"
-                    >
-                      <option value="15">Every 15 Seconds (Real-time safety)</option>
-                      <option value="30">Every 30 Seconds (Default recommended)</option>
-                      <option value="60">Every 60 Seconds</option>
-                      <option value="180">Every 3 Minutes</option>
-                    </select>
+                      options={[
+                        { value: '15', label: 'Every 15 seconds' },
+                        { value: '30', label: 'Every 30 seconds', description: 'Recommended' },
+                        { value: '60', label: 'Every minute' },
+                        { value: '180', label: 'Every 3 minutes' },
+                      ]} />
                   </div>
                 </div>
               </div>
@@ -201,7 +195,7 @@ export const SettingsModal: React.FC = () => {
 
                 <div className="p-3.5 rounded bg-d2-accent/10 border border-d2-accent/30 text-2xs text-d2-text">
                   <span className="font-semibold text-d2-accent">Non-Destructive Scaling: </span>
-                  Preview performance modes scale the canvas fill-rate during interactive editing to ensure smooth 60 FPS playback on laptops and integrated GPUs. <span className="font-semibold text-white">Final video export quality is NEVER compromised</span> and always renders at full native resolution (1080p, 1440p, or 4K).
+                  Preview modes reduce interactive rendering load with 30 or 60 FPS budgets. Actual playback speed depends on hardware and scene complexity. <span className="font-semibold text-white">Export resolution stays unchanged</span> and renders at the selected output size.
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
@@ -209,32 +203,33 @@ export const SettingsModal: React.FC = () => {
                     {
                       id: 'performance' as PreviewQuality,
                       title: 'Performance',
-                      desc: '0.6x resolution scale. Optimized for battery life and laptop iGPUs.',
-                      badge: 'Fastest 60fps',
+                      desc: 'Viewport-sized preview, capped at 0.6× native resolution. Lower GPU and CPU load.',
+                      badge: '30 FPS budget',
                     },
                     {
                       id: 'balanced' as PreviewQuality,
                       title: 'Balanced',
-                      desc: '0.85x resolution scale. Smooth editing with sharp visual detail.',
-                      badge: 'Recommended',
+                      desc: 'Viewport-sized preview, capped at 0.85× native resolution. 60 FPS playback budget.',
+                       badge: '60 FPS budget',
                     },
                     {
                       id: 'quality' as PreviewQuality,
                       title: 'Quality',
-                      desc: '1.0x native unthrottled resolution. Pixel-perfect studio fidelity.',
+                      desc: 'Native-resolution preview with a 60 FPS playback budget. Highest GPU load.',
                       badge: 'Studio Native',
                     },
                   ].map((mode) => (
-                    <div
+                    <button type="button"
                       key={mode.id}
                       onClick={() => setPreviewQuality(mode.id)}
-                      className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
+                      aria-pressed={previewQuality === mode.id}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors text-left ${
                         previewQuality === mode.id
                           ? 'bg-d2-accent/15 border-d2-accent text-white shadow-lg'
                           : 'bg-d2-surfaceElevated/30 border-d2-borderSubtle hover:border-d2-border text-d2-textMuted'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
                         <span className="text-xs font-bold text-white">{mode.title}</span>
                         <span
                           className={`text-3xs px-1.5 py-0.5 rounded font-medium ${
@@ -243,34 +238,15 @@ export const SettingsModal: React.FC = () => {
                               : 'bg-d2-surface text-d2-textSubtle'
                           }`}
                         >
-                          {mode.badge}
+                           {recommendedMode === mode.id ? 'Recommended' : mode.badge}
                         </span>
                       </div>
                       <p className="text-2xs leading-relaxed text-d2-textSubtle">{mode.desc}</p>
-                    </div>
+                    </button>
                   ))}
                 </div>
 
-                <div className="space-y-2 pt-2">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-400" />
-                    Hardware Acceleration Status
-                  </h4>
-                  <div className="p-3 rounded bg-d2-surfaceElevated/40 border border-d2-borderSubtle grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <span className="text-d2-textSubtle block text-2xs">GPU Acceleration:</span>
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Enabled (WebGL 2.0 Active)
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-d2-textSubtle block text-2xs">Hardware Video Encoder:</span>
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> NVENC / QSV Ready
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                <HardwareCheck />
               </div>
             )}
 
@@ -292,15 +268,14 @@ export const SettingsModal: React.FC = () => {
                         Higher values yield finer bass/mid frequency analysis
                       </div>
                     </div>
-                    <select
+                    <Select ariaLabel="FFT Analyser Resolution" className="w-48 shrink-0"
                       value={fftSize}
-                      onChange={(e) => setFftSize(e.target.value)}
-                      className="rounded bg-d2-surface border border-d2-border px-2 py-1 text-xs text-white"
-                    >
-                      <option value="1024">1024 Bins (Low Latency)</option>
-                      <option value="2048">2048 Bins (Balanced Studio)</option>
-                      <option value="4096">4096 Bins (High Definition)</option>
-                    </select>
+                      onChange={setFftSize}
+                      options={[
+                        { value: '1024', label: '1024 bins', description: 'Low latency' },
+                        { value: '2048', label: '2048 bins', description: 'Balanced studio' },
+                        { value: '4096', label: '4096 bins', description: 'High definition' },
+                      ]} />
                   </div>
 
                   <div className="flex items-center justify-between p-3 rounded bg-d2-surfaceElevated/40 border border-d2-borderSubtle">
@@ -312,14 +287,13 @@ export const SettingsModal: React.FC = () => {
                         Internal sample rate for Web Audio decoding
                       </div>
                     </div>
-                    <select
+                    <Select ariaLabel="Default Processing Sample Rate" className="w-48 shrink-0"
                       value={sampleRate}
-                      onChange={(e) => setSampleRate(e.target.value)}
-                      className="rounded bg-d2-surface border border-d2-border px-2 py-1 text-xs text-white"
-                    >
-                      <option value="44100">44.1 kHz (CD Quality)</option>
-                      <option value="48000">48.0 kHz (Broadcast Video Standard)</option>
-                    </select>
+                      onChange={setSampleRate}
+                      options={[
+                        { value: '44100', label: '44.1 kHz', description: 'CD quality' },
+                        { value: '48000', label: '48.0 kHz', description: 'Broadcast video' },
+                      ]} />
                   </div>
                 </div>
               </div>
@@ -340,15 +314,12 @@ export const SettingsModal: React.FC = () => {
                         Hardware Accelerated Video Encoding
                       </div>
                       <div className="text-2xs text-d2-textSubtle">
-                        Use NVIDIA NVENC or Intel QSV when supported by hardware
+                        Use NVIDIA NVENC when available, otherwise fall back to CPU encoding
                       </div>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={hwAccel}
-                      onChange={(e) => setHwAccel(e.target.checked)}
-                      className="w-4 h-4 accent-d2-accent rounded cursor-pointer"
-                    />
+                    <Switch label="Hardware Accelerated Video Encoding"
+                      checked={videoCodec !== 'libx264'}
+                      onChange={(checked) => setVideoCodec(checked ? 'auto' : 'libx264')} />
                   </div>
 
                   <div className="flex items-center justify-between p-3 rounded bg-d2-surfaceElevated/40 border border-d2-borderSubtle">
@@ -360,14 +331,13 @@ export const SettingsModal: React.FC = () => {
                         Output container for visualizer videos
                       </div>
                     </div>
-                    <select
+                    <Select ariaLabel="Default Video Container" className="w-48 shrink-0"
                       value={defaultFormat}
-                      onChange={(e) => setDefaultFormat(e.target.value)}
-                      className="rounded bg-d2-surface border border-d2-border px-2 py-1 text-xs text-white"
-                    >
-                      <option value="mp4">MP4 (H.264 + AAC)</option>
-                      <option value="webm">WebM (VP9 + Opus)</option>
-                    </select>
+                      onChange={setDefaultFormat}
+                      options={[
+                        { value: 'mp4', label: 'MP4', description: 'H.264 + AAC' },
+                        { value: 'webm', label: 'WebM', description: 'VP9 + Opus' },
+                      ]} />
                   </div>
 
                   <div className="p-3 rounded bg-d2-surfaceElevated/40 border border-d2-borderSubtle space-y-2">
@@ -465,16 +435,6 @@ export const SettingsModal: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="h-12 border-t border-d2-border px-5 flex items-center justify-end gap-2 bg-d2-surfaceElevated/50">
-          <button
-            onClick={() => setSettingsOpen(false)}
-            className="px-4 py-1.5 rounded bg-d2-surfaceElevated hover:bg-d2-surfaceActive border border-d2-border text-xs font-medium text-white transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

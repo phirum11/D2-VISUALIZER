@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import {
   Layers,
   ChevronDown,
@@ -15,9 +16,11 @@ import { TimelineRenderer } from '@/engine/timeline/TimelineRenderer'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 export const TimelinePanel: React.FC = () => {
-  const { zoom, tracks, setScrollLeft } = useTimelineStore()
+  const { zoom, tracks, setScrollLeft } = useTimelineStore(useShallow((s) => ({
+    zoom: s.zoom, tracks: s.tracks, setScrollLeft: s.setScrollLeft,
+  })))
   const { isTimelineCollapsed, toggleTimeline, timelineHeight, setTimelineHeight } = useUIStore()
-  const { duration } = usePreviewStore()
+  const duration = usePreviewStore((s) => s.duration)
   const [filterActiveOnly, setFilterActiveOnly] = useState(false)
 
   const displayedTracks = useMemo(() => {
@@ -30,6 +33,7 @@ export const TimelinePanel: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const headerContainerRef = useRef<HTMLDivElement>(null)
   const isResizingHeightRef = useRef(false)
+  const [isResizingHeight, setIsResizingHeight] = useState(false)
 
   const totalWidth = TimelineRenderer.calculateTotalWidth(duration, zoom)
 
@@ -98,6 +102,7 @@ export const TimelinePanel: React.FC = () => {
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
     isResizingHeightRef.current = true
+    setIsResizingHeight(true)
     const startY = e.clientY
     const startHeight = timelineHeight
 
@@ -110,6 +115,7 @@ export const TimelinePanel: React.FC = () => {
 
     const handleMouseUp = () => {
       isResizingHeightRef.current = false
+      setIsResizingHeight(false)
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
@@ -118,9 +124,12 @@ export const TimelinePanel: React.FC = () => {
     window.addEventListener('mouseup', handleMouseUp)
   }
 
-  if (isTimelineCollapsed) {
-    return (
-      <div className="h-7 w-full bg-d2-surface border-t border-d2-border px-3 flex items-center justify-between select-none z-20 shrink-0">
+  return (
+    <div data-timeline-panel data-resizing={isResizingHeight}
+      style={{ height: isTimelineCollapsed ? 32 : timelineHeight }}
+      className="panel-size-transition w-full bg-d2-surface border-t border-d2-border select-none z-20 shrink-0 overflow-hidden relative">
+      <div aria-hidden={!isTimelineCollapsed} ref={node => { if (node) node.inert = !isTimelineCollapsed }}
+        className={`panel-fade absolute top-0 inset-x-0 h-8 px-3 flex items-center justify-between ${isTimelineCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className="flex items-center gap-2">
           <Layers className="w-3.5 h-3.5 text-d2-accent" />
           <span className="text-2xs font-semibold uppercase tracking-wider text-d2-textSubtle">
@@ -129,19 +138,18 @@ export const TimelinePanel: React.FC = () => {
         </div>
         <button
           onClick={toggleTimeline}
+          aria-label="Expand Timeline"
+          aria-expanded={false}
           className="flex items-center gap-1 text-2xs text-d2-textSubtle hover:text-white"
         >
           <span>Expand Timeline</span>
           <ChevronUp className="w-3.5 h-3.5 text-d2-accent" />
         </button>
       </div>
-    )
-  }
-
-  return (
     <div
       style={{ height: `${timelineHeight}px` }}
-      className="w-full bg-d2-surface border-t border-d2-border flex flex-col select-none z-20 shrink-0 overflow-hidden relative"
+      aria-hidden={isTimelineCollapsed} ref={node => { if (node) node.inert = isTimelineCollapsed }}
+      className={`panel-fade w-full flex flex-col overflow-hidden relative ${isTimelineCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
     >
       {/* Top Resize Handle */}
       <div
@@ -151,13 +159,15 @@ export const TimelinePanel: React.FC = () => {
 
       {/* Timeline Professional Toolbar */}
       <div className="flex items-center justify-between border-b border-d2-border bg-d2-surfaceElevated/40">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <TimelineToolbar />
         </div>
         <div className="px-2">
           <Tooltip content="Collapse Timeline" side="top">
             <button
               onClick={toggleTimeline}
+              aria-label="Collapse Timeline"
+              aria-expanded={true}
               className="p-1 rounded text-d2-textSubtle hover:text-white hover:bg-d2-surface transition-colors"
             >
               <ChevronDown className="w-3.5 h-3.5" />
@@ -169,10 +179,10 @@ export const TimelinePanel: React.FC = () => {
       {/* Main Track Grid & Ruler */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Fixed Column: Channels / Headers */}
-        <div className="w-64 h-full bg-d2-surface border-r border-d2-border flex flex-col shrink-0 z-20 shadow-md">
-          <div className="h-8 bg-d2-surfaceElevated/70 border-b border-d2-border px-3 flex items-center justify-between text-3xs font-semibold uppercase tracking-wider text-d2-textSubtle shrink-0 whitespace-nowrap overflow-hidden">
+        <div className="w-56 h-full bg-d2-surface border-r border-d2-border flex flex-col shrink-0 z-20">
+          <div className="h-10 bg-d2-surface border-b border-d2-border px-3 flex items-center justify-between text-3xs font-medium text-d2-textSubtle shrink-0 whitespace-nowrap overflow-hidden">
             <div className="flex items-center gap-2">
-              <span className="text-white/80 font-bold">Tracks ({displayedTracks.length})</span>
+              <span className="text-d2-text font-medium">Tracks <span className="text-d2-textSubtle ml-1">{displayedTracks.length}</span></span>
               <button
                 onClick={() => setFilterActiveOnly(!filterActiveOnly)}
                 className={`px-1.5 py-0.2 rounded text-4xs font-mono font-semibold transition-colors ${
@@ -185,7 +195,7 @@ export const TimelinePanel: React.FC = () => {
                 {filterActiveOnly ? 'ACTIVE' : 'ALL'}
               </button>
             </div>
-            <span className="text-4xs font-mono text-d2-textSubtle uppercase tracking-wider">Mute / Lock</span>
+            <span className="text-4xs text-d2-textSubtle">Controls</span>
           </div>
 
           <div
@@ -221,6 +231,7 @@ export const TimelinePanel: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   )
 }

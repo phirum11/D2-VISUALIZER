@@ -1,11 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from './ipc/channels'
+import type { HardwareProfile } from '../src/engine/performance/HardwareRecommendation'
 
 const electronAPI = {
   // App info & diagnostics
   getVersion: (): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_VERSION),
   getPlatform: (): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_PLATFORM),
   ping: (): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.PING),
+  hardwareGetSaved: (): Promise<HardwareProfile | null> => ipcRenderer.invoke(IPC_CHANNELS.HARDWARE_GET_SAVED),
+  hardwareCheckOnce: (): Promise<HardwareProfile> => ipcRenderer.invoke(IPC_CHANNELS.HARDWARE_CHECK_ONCE),
 
   // Window management
   minimize: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MINIMIZE),

@@ -5,6 +5,7 @@ import { PreviewWorkspace } from '../preview/PreviewWorkspace'
 import { InspectorPanel } from '../inspector/InspectorPanel'
 import { TimelinePanel } from '../timeline/TimelinePanel'
 import { SettingsModal } from './SettingsModal'
+import { ExportModal } from '../export/ExportModal'
 import { LiveAudioMonitor } from '../audio/LiveAudioMonitor'
 import { ProjectBrowserModal } from '../project/ProjectBrowserModal'
 import { TemplateBrowserModal } from '../project/TemplateBrowserModal'
@@ -15,13 +16,12 @@ import { useAudioStore } from '@/stores/audioStore'
 import { useProjectStore } from '@/stores/projectStore'
 
 export const MainLayout: React.FC = () => {
-  const { audioMonitorOpen, setAudioMonitorOpen } = useAudioStore()
-  const {
-    saveProject,
-    saveProjectAs,
-    openProjectViaDialog,
-    setProjectBrowserOpen,
-  } = useProjectStore()
+  const audioMonitorOpen = useAudioStore((s) => s.audioMonitorOpen)
+  const setAudioMonitorOpen = useAudioStore((s) => s.setAudioMonitorOpen)
+  const saveProject = useProjectStore((s) => s.saveProject)
+  const saveProjectAs = useProjectStore((s) => s.saveProjectAs)
+  const openProjectViaDialog = useProjectStore((s) => s.openProjectViaDialog)
+  const setProjectBrowserOpen = useProjectStore((s) => s.setProjectBrowserOpen)
 
   // Global Project Keyboard Shortcuts
   useEffect(() => {
@@ -77,6 +77,7 @@ export const MainLayout: React.FC = () => {
 
       {/* Modals & Diagnostic Sheets */}
       <SettingsModal />
+      <ExportModal />
       <ProjectBrowserModal />
       <TemplateBrowserModal />
       <PresetManagerModal />

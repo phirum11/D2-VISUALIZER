@@ -15,7 +15,7 @@ export abstract class Base3DVisualizer implements IVisualizerPlugin {
 
   protected scene: THREE.Scene
   protected camera: THREE.PerspectiveCamera
-  protected renderer: THREE.WebGLRenderer
+  protected renderer: THREE.WebGLRenderer | null = null
   protected internalWidth: number = 1920
   protected internalHeight: number = 1080
   protected initialized: boolean = false
@@ -25,25 +25,22 @@ export abstract class Base3DVisualizer implements IVisualizerPlugin {
     this.camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 1000)
     this.camera.position.z = 25
 
-    // Initialize WebGLRenderer with transparency and buffer preservation for 2D composite
+  }
+
+  public init(_container: HTMLElement | HTMLCanvasElement): void {
+    if (this.initialized) return
+    // Allocate a GPU context only when the style is actually rendered.
     this.renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: true,
-      preserveDrawingBuffer: true,
+      preserveDrawingBuffer: false,
       powerPreference: 'high-performance',
     })
     this.renderer.setClearColor(0x000000, 0) // transparent background
-    this.renderer.setSize(this.internalWidth, this.internalHeight, false)
     this.renderer.setPixelRatio(1)
-  }
-
-  public init(container: HTMLElement | HTMLCanvasElement): void {
-    if (this.initialized) return
     this.setupScene()
     this.initialized = true
-    if (container instanceof HTMLElement && !(container instanceof HTMLCanvasElement)) {
-      // If a container element was provided, ensure domElement is managed
-    }
+    this.renderer.setSize(this.internalWidth, this.internalHeight, false)
   }
 
   /**
@@ -57,18 +54,17 @@ export abstract class Base3DVisualizer implements IVisualizerPlugin {
   protected abstract update3D(context: VisualizerRenderContext): void
 
   public render(context: VisualizerRenderContext): void {
+    const renderScale = context.renderScale ?? 1
+    this.resize(Math.max(1, Math.round(context.width * renderScale)), Math.max(1, Math.round(context.height * renderScale)))
     if (!this.initialized) {
       this.init(context.canvas)
     }
-
-    // Synchronize 3D renderer resolution with context
-    this.resize(context.width, context.height)
 
     // Update 3D geometry / animation
     this.update3D(context)
 
     // Render WebGL frame
-    this.renderer.render(this.scene, this.camera)
+    this.renderer!.render(this.scene, this.camera)
 
     // Composite WebGL output onto 2D master canvas
     if (context.ctx2d) {
@@ -90,7 +86,7 @@ export abstract class Base3DVisualizer implements IVisualizerPlugin {
 
       // Draw WebGL canvas centered at origin
       ctx2d.drawImage(
-        this.renderer.domElement,
+        this.renderer!.domElement,
         -width / 2,
         -height / 2,
         width,
@@ -107,7 +103,7 @@ export abstract class Base3DVisualizer implements IVisualizerPlugin {
       this.internalHeight = height
       this.camera.aspect = width / height
       this.camera.updateProjectionMatrix()
-      this.renderer.setSize(width, height, false)
+      this.renderer?.setSize(width, height, false)
     }
   }
 
@@ -132,8 +128,9 @@ export abstract class Base3DVisualizer implements IVisualizerPlugin {
       this.scene.remove(this.scene.children[0])
     }
 
-    this.renderer.dispose()
-    this.renderer.forceContextLoss()
+    this.renderer?.dispose()
+    this.renderer?.forceContextLoss()
+    this.renderer = null
     this.initialized = false
   }
 }

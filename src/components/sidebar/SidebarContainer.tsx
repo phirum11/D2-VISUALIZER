@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { useUIStore } from '@/stores/uiStore'
 import { SidebarNav } from './SidebarNav'
 import { MediaPanel } from './panels/MediaPanel'
@@ -7,15 +7,16 @@ import { BackgroundsPanel } from './panels/BackgroundsPanel'
 import { TextPanel } from './panels/TextPanel'
 import { EffectsPanel } from './panels/EffectsPanel'
 import { TemplatesPanel } from './panels/TemplatesPanel'
-import { ExportPanel } from './panels/ExportPanel'
 
 export const SidebarContainer: React.FC = () => {
   const { activeTab, isSidebarCollapsed, sidebarWidth, setSidebarWidth } = useUIStore()
   const isDraggingRef = useRef(false)
+  const [isResizing, setIsResizing] = useState(false)
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
     isDraggingRef.current = true
+    setIsResizing(true)
     const startX = e.clientX
     const startW = sidebarWidth
 
@@ -27,6 +28,7 @@ export const SidebarContainer: React.FC = () => {
 
     const handleMouseUp = () => {
       isDraggingRef.current = false
+      setIsResizing(false)
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
@@ -49,8 +51,6 @@ export const SidebarContainer: React.FC = () => {
         return <EffectsPanel />
       case 'templates':
         return <TemplatesPanel />
-      case 'export':
-        return <ExportPanel />
       default:
         return <VisualizersPanel />
     }
@@ -62,8 +62,12 @@ export const SidebarContainer: React.FC = () => {
       <SidebarNav />
 
       {/* Expandable Content Drawer */}
-      {!isSidebarCollapsed && (
-        <>
+      <div data-sidebar-panel data-resizing={isResizing}
+        style={{ width: isSidebarCollapsed ? 0 : sidebarWidth + 4 }}
+        className="panel-size-transition h-full shrink-0 overflow-hidden"
+        aria-hidden={isSidebarCollapsed} ref={node => { if (node) node.inert = isSidebarCollapsed }}>
+        <div style={{ width: sidebarWidth + 4 }}
+          className={`panel-fade flex h-full ${isSidebarCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <div
             style={{ width: `${sidebarWidth}px` }}
             className="h-full bg-d2-surface flex flex-col overflow-hidden"
@@ -76,8 +80,8 @@ export const SidebarContainer: React.FC = () => {
             className="w-1 h-full cursor-col-resize z-30 bg-d2-border hover:bg-d2-accent active:bg-d2-accent transition-colors"
             title="Drag to resize panel"
           />
-        </>
-      )}
+        </div>
+      </div>
     </div>
   )
 }

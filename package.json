@@ -8,7 +8,9 @@
     "dev": "node scripts/dev.js",
     "build": "tsc && vite build",
     "dist:win": "npm run build && electron-builder --win --x64 --config electron-builder.json5",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:performance": "node scripts/test_performance.cjs",
+    "test": "node --test scripts/performance.test.cjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

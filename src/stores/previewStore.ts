@@ -4,6 +4,16 @@ export type AspectRatio = '16:9' | '9:16' | '1:1' | '4:5' | '21:9'
 export type PreviewQuality = 'performance' | 'balanced' | 'quality'
 export type FitMode = 'fit' | 'fill'
 
+const previewQualityKey = 'd2-preview-quality'
+
+function savedPreviewQuality(): PreviewQuality {
+  try {
+    const saved = localStorage.getItem(previewQualityKey)
+    if (saved === 'performance' || saved === 'balanced' || saved === 'quality') return saved
+  } catch { /* Storage can be unavailable in diagnostics or restricted environments. */ }
+  return 'balanced'
+}
+
 interface PreviewState {
   aspectRatio: AspectRatio
   fitMode: FitMode
@@ -37,7 +47,7 @@ export const usePreviewStore = create<PreviewState>((set) => ({
   fitMode: 'fit',
   zoom: 0, // Fit
   showSafeGuides: false,
-  previewQuality: 'balanced',
+  previewQuality: savedPreviewQuality(),
   isPlaying: false,
   currentTime: 0,
   duration: 198.0, // Default 3:18 project timeline length
@@ -49,10 +59,13 @@ export const usePreviewStore = create<PreviewState>((set) => ({
   setFitMode: (fitMode) => set({ fitMode }),
   setZoom: (zoom) => set({ zoom }),
   toggleSafeGuides: () => set((s) => ({ showSafeGuides: !s.showSafeGuides })),
-  setPreviewQuality: (previewQuality) => set({ previewQuality }),
-  setIsPlaying: (isPlaying) => set({ isPlaying }),
-  setCurrentTime: (currentTime) => set({ currentTime }),
-  setDuration: (duration) => set({ duration }),
+  setPreviewQuality: (previewQuality) => {
+    try { localStorage.setItem(previewQualityKey, previewQuality) } catch { /* Keep the session setting if persistence is unavailable. */ }
+    set({ previewQuality })
+  },
+  setIsPlaying: (isPlaying) => set((s) => s.isPlaying === isPlaying ? s : { isPlaying }),
+  setCurrentTime: (currentTime) => set((s) => s.currentTime === currentTime ? s : { currentTime }),
+  setDuration: (duration) => set((s) => s.duration === duration ? s : { duration }),
   setVolume: (volume) => set({ volume }),
   toggleLooping: () => set((s) => ({ isLooping: !s.isLooping })),
   setIsFullscreenPreview: (isFullscreenPreview) => set({ isFullscreenPreview }),

@@ -1,190 +1,71 @@
 import React from 'react'
-import {
-  Maximize2,
-  Minimize2,
-  Tv,
-  Smartphone,
-  Square,
-  Shield,
-  Eye,
-  Maximize,
-  Film,
-} from 'lucide-react'
-import {
-  usePreviewStore,
-  AspectRatio,
-  PreviewQuality,
-} from '@/stores/previewStore'
-import { Tooltip } from '@/components/ui/Tooltip'
+import { useShallow } from 'zustand/react/shallow'
+import { Maximize, Shield, Tv, Scan, Gauge } from 'lucide-react'
+import { usePreviewStore, AspectRatio, PreviewQuality } from '@/stores/previewStore'
+import { Select } from '@/components/ui/Select'
+
+const formats = [
+  { value: '16:9', label: '16:9', description: 'Landscape · YouTube and desktop' },
+  { value: '9:16', label: '9:16', description: 'Portrait · Shorts and Reels' },
+  { value: '1:1', label: '1:1', description: 'Square · Social posts' },
+  { value: '4:5', label: '4:5', description: 'Portrait · Social feeds' },
+  { value: '21:9', label: '21:9', description: 'Ultrawide · Cinematic' },
+]
+const zoomLevels = [
+  { value: '0', label: 'Fit view', description: 'Show the entire composition' },
+  { value: '0.25', label: '25%' }, { value: '0.5', label: '50%' },
+  { value: '0.75', label: '75%' }, { value: '1', label: '100%', description: 'Actual pixel size' },
+  { value: '1.5', label: '150%' }, { value: '2', label: '200%' },
+]
+const qualities = [
+  { value: 'performance', label: 'Performance', description: '30 FPS · Reduced preview resolution' },
+  { value: 'balanced', label: 'Balanced', description: '60 FPS · Viewport-sized preview' },
+  { value: 'quality', label: 'Quality', description: '60 FPS · Full-resolution preview' },
+]
 
 export const PreviewHeader: React.FC = () => {
   const {
-    aspectRatio,
-    setAspectRatio,
-    zoom,
-    setZoom,
-    fitMode,
-    setFitMode,
-    showSafeGuides,
-    toggleSafeGuides,
-    previewQuality,
-    setPreviewQuality,
-    isFullscreenPreview,
-    toggleFullscreenPreview,
-  } = usePreviewStore()
-
-  const aspectButtons: { id: AspectRatio; label: string; icon: React.ElementType }[] = [
-    { id: '16:9', label: '16:9 Landscape (YouTube/Vimeo)', icon: Tv },
-    { id: '9:16', label: '9:16 Portrait (TikTok/Shorts/Reels)', icon: Smartphone },
-    { id: '1:1', label: '1:1 Square (Instagram/Post)', icon: Square },
-    { id: '4:5', label: '4:5 Portrait (Feed)', icon: Smartphone },
-    { id: '21:9', label: '21:9 Ultrawide (Cinematic)', icon: Film },
-  ]
+    aspectRatio, setAspectRatio, zoom, setZoom, fitMode, setFitMode,
+    showSafeGuides, toggleSafeGuides, previewQuality, setPreviewQuality,
+    isFullscreenPreview, toggleFullscreenPreview,
+  } = usePreviewStore(useShallow(s => ({
+    aspectRatio: s.aspectRatio, setAspectRatio: s.setAspectRatio, zoom: s.zoom, setZoom: s.setZoom,
+    fitMode: s.fitMode, setFitMode: s.setFitMode, showSafeGuides: s.showSafeGuides, toggleSafeGuides: s.toggleSafeGuides,
+    previewQuality: s.previewQuality, setPreviewQuality: s.setPreviewQuality,
+    isFullscreenPreview: s.isFullscreenPreview, toggleFullscreenPreview: s.toggleFullscreenPreview,
+  })))
 
   return (
-    <div className="h-10 w-full bg-d2-surface border-b border-d2-border px-3 flex items-center justify-between select-none z-10 shrink-0">
-      {/* Left: Aspect Ratio Selector */}
-      <div className="flex items-center gap-1.5">
-        <span className="text-3xs font-semibold text-d2-textSubtle uppercase tracking-wider font-mono">
-          Format
-        </span>
-        <div className="flex items-center gap-0.5 p-0.5 rounded bg-d2-surfaceElevated border border-d2-border">
-          {aspectButtons.map((btn) => {
-            const Icon = btn.icon
-            const isSelected = aspectRatio === btn.id
-            return (
-              <Tooltip key={btn.id} content={btn.label} side="bottom">
-                <button
-                  onClick={() => setAspectRatio(btn.id)}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-3xs font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-d2-accent text-white shadow-xs font-semibold'
-                      : 'text-d2-textSubtle hover:text-white hover:bg-d2-surfaceActive'
-                  }`}
-                  aria-label={btn.label}
-                >
-                  <Icon className="w-3 h-3" />
-                  <span>{btn.id}</span>
-                </button>
-              </Tooltip>
-            )
-          })}
-        </div>
+    <div data-preview-toolbar className="min-h-12 bg-d2-surface border-b border-d2-border px-3 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 shrink-0 select-none">
+      <div className="flex items-center gap-1">
+        <span className="text-xs font-medium text-d2-textMuted mr-2">Preview</span>
+        <Select ariaLabel="Composition format" value={aspectRatio} options={formats}
+          onChange={value => setAspectRatio(value as AspectRatio)} compact icon={Tv} className="w-[90px]" />
+        <span className="h-4 w-px bg-d2-border mx-1" />
+        <Select ariaLabel="Preview zoom" value={String(zoom)} options={zoomLevels}
+          onChange={value => { setZoom(Number(value)); setFitMode('fit') }} compact className="w-[90px]" />
+        <button type="button" title={fitMode === 'fit' ? 'Fill viewport' : 'Fit composition'}
+          aria-label="Fill viewport" aria-pressed={fitMode === 'fill'}
+          onClick={() => { setZoom(0); setFitMode(fitMode === 'fit' ? 'fill' : 'fit') }}
+          className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${fitMode === 'fill'
+            ? 'bg-d2-surfaceActive text-white' : 'text-d2-textMuted hover:text-white hover:bg-d2-surfaceActive'}`}>
+          <Scan className="w-3.5 h-3.5" />
+        </button>
       </div>
-
-      {/* Center: Viewport Zoom & Fit Controls */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 bg-d2-surfaceElevated border border-d2-border rounded px-2 py-0.5">
-          <span className="text-3xs text-d2-textSubtle font-mono uppercase">Zoom:</span>
-          <select
-            value={zoom}
-            onChange={(e) => setZoom(parseFloat(e.target.value))}
-            className="bg-transparent text-2xs text-white font-medium focus:outline-none cursor-pointer"
-          >
-            <option value="0" className="bg-d2-surface text-white">
-              Fit View
-            </option>
-            <option value="0.25" className="bg-d2-surface text-white">
-              25%
-            </option>
-            <option value="0.5" className="bg-d2-surface text-white">
-              50%
-            </option>
-            <option value="0.75" className="bg-d2-surface text-white">
-              75%
-            </option>
-            <option value="1.0" className="bg-d2-surface text-white">
-              100% (1:1)
-            </option>
-            <option value="1.5" className="bg-d2-surface text-white">
-              150%
-            </option>
-            <option value="2.0" className="bg-d2-surface text-white">
-              200%
-            </option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-0.5 bg-d2-surfaceElevated border border-d2-border rounded p-0.5">
-          <Tooltip content="Fit to screen" side="bottom">
-            <button
-              onClick={() => setFitMode('fit')}
-              className={`p-1 rounded text-2xs font-medium transition-colors ${
-                fitMode === 'fit'
-                  ? 'bg-d2-surfaceActive text-white'
-                  : 'text-d2-textSubtle hover:text-white'
-              }`}
-            >
-              <Minimize2 className="w-3 h-3" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Fill screen" side="bottom">
-            <button
-              onClick={() => setFitMode('fill')}
-              className={`p-1 rounded text-2xs font-medium transition-colors ${
-                fitMode === 'fill'
-                  ? 'bg-d2-surfaceActive text-white'
-                  : 'text-d2-textSubtle hover:text-white'
-              }`}
-            >
-              <Maximize2 className="w-3 h-3" />
-            </button>
-          </Tooltip>
-        </div>
-      </div>
-
-      {/* Right: Guides, Quality & Fullscreen */}
-      <div className="flex items-center gap-2">
-        <Tooltip content="Toggle Safe Margin Guides" side="bottom">
-          <button
-            onClick={toggleSafeGuides}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-2xs font-medium border transition-colors ${
-              showSafeGuides
-                ? 'bg-cyan-950/60 border-cyan-800 text-cyan-400'
-                : 'bg-d2-surfaceElevated border-d2-border text-d2-textSubtle hover:text-white'
-            }`}
-          >
-            <Shield className="w-3 h-3" />
-            <span>Guides</span>
-          </button>
-        </Tooltip>
-
-        <div className="flex items-center gap-1 bg-d2-surfaceElevated border border-d2-border rounded px-2 py-0.5">
-          <Eye className="w-3 h-3 text-d2-textSubtle" />
-          <select
-            value={previewQuality}
-            onChange={(e) =>
-              setPreviewQuality(e.target.value as PreviewQuality)
-            }
-            className="bg-transparent text-2xs text-white font-medium focus:outline-none cursor-pointer capitalize"
-          >
-            <option value="performance" className="bg-d2-surface text-white">
-              Performance (Fast)
-            </option>
-            <option value="balanced" className="bg-d2-surface text-white">
-              Balanced (Standard)
-            </option>
-            <option value="quality" className="bg-d2-surface text-white">
-              Quality (Full Res)
-            </option>
-          </select>
-        </div>
-
-        {/* Fullscreen Preview Toggle Button */}
-        <Tooltip content={isFullscreenPreview ? "Exit Fullscreen (Esc)" : "Fullscreen Preview (Ctrl+F)"} side="bottom">
-          <button
-            onClick={toggleFullscreenPreview}
-            className={`p-1.5 rounded border transition-colors ${
-              isFullscreenPreview
-                ? 'bg-d2-accent border-d2-accent text-white'
-                : 'bg-d2-surfaceElevated border-d2-border text-d2-textSubtle hover:text-white hover:border-d2-accent/50'
-            }`}
-            aria-label="Fullscreen Preview"
-          >
-            <Maximize className="w-3.5 h-3.5" />
-          </button>
-        </Tooltip>
+      <div className="flex items-center gap-1">
+        <button type="button" title="Safe margin guides" aria-label="Safe margin guides" aria-pressed={showSafeGuides}
+          onClick={toggleSafeGuides}
+          className={`h-8 flex items-center gap-1.5 px-2 rounded-md text-2xs transition-colors ${showSafeGuides
+            ? 'bg-d2-surfaceActive text-white' : 'text-d2-textMuted hover:text-white hover:bg-d2-surfaceActive'}`}>
+          <Shield className="w-3.5 h-3.5" /><span>Guides</span>
+        </button>
+        <Select ariaLabel="Preview quality" value={previewQuality} options={qualities}
+          onChange={value => setPreviewQuality(value as PreviewQuality)} compact icon={Gauge} align="right" className="w-[132px]" />
+        <button type="button" title={isFullscreenPreview ? 'Exit fullscreen (Esc)' : 'Fullscreen preview (Ctrl+F)'}
+          aria-label="Fullscreen Preview" aria-pressed={isFullscreenPreview} onClick={toggleFullscreenPreview}
+          className="w-8 h-8 rounded-md text-d2-textMuted hover:text-white hover:bg-d2-surfaceActive flex items-center justify-center transition-colors">
+          <Maximize className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   )

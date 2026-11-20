@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import {
   CheckCircle2,
   Search,
@@ -14,9 +14,14 @@ import {
   VisualizerPreset,
 } from '@/engine/visualizers/VisualizerPresetCatalog'
 import { VisualizerThumbCanvas } from './VisualizerThumbCanvas'
+import { normalizeBassConfig } from '@/engine/audio/BassReactivity'
+import { ScrollableCategoryStrip } from '@/components/ui/ScrollableCategoryStrip'
+
+const PAGE_SIZE = 24
 
 const ORDERED_CATEGORIES = [
   'All',
+  'Bass Pack',
   'Favorites',
   'Recent',
   'Spectrum',
@@ -32,28 +37,22 @@ const ORDERED_CATEGORIES = [
 ] as const
 
 export const VisualizersPanel: React.FC = () => {
-  const { visualizer, updateVisualizer } = useCompositionStore()
+  const visualizer = useCompositionStore(state => state.visualizer)
+  const updateVisualizer = useCompositionStore(state => state.updateVisualizer)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [favorites, setFavorites] = useState<string[]>([])
   const [recents, setRecents] = useState<string[]>([])
-  const [activePresetId, setActivePresetId] = useState<string>(() => {
-    // Attempt to match current composition visualizer to a known preset
-    const match = VISUALIZER_PRESETS.find(
-      (p) =>
-        p.engineType === visualizer.type &&
-        p.config.primaryColor === visualizer.primaryColor
-    )
-    return match ? match.id : 'preset-classic-studio-bars'
-  })
+  const [page, setPage] = useState(0)
+  const listRef = useRef<HTMLDivElement>(null)
 
   // Load favorites & recents from localStorage
   useEffect(() => {
     try {
       const favStr = localStorage.getItem('d2_visualizer_favorites')
-      if (favStr) setFavorites(JSON.parse(favStr))
+      if (favStr) { const ids = JSON.parse(favStr); if (Array.isArray(ids)) setFavorites(ids.filter(id => typeof id === 'string' && VISUALIZER_PRESETS.some(p => p.id === id))) }
       const recStr = localStorage.getItem('d2_visualizer_recents')
-      if (recStr) setRecents(JSON.parse(recStr))
+      if (recStr) { const ids = JSON.parse(recStr); if (Array.isArray(ids)) setRecents(ids.filter(id => typeof id === 'string' && VISUALIZER_PRESETS.some(p => p.id === id)).slice(0, 12)) }
     } catch {
       // Ignore fallback
     }
@@ -73,12 +72,12 @@ export const VisualizersPanel: React.FC = () => {
   }
 
   const handleApplyPreset = (preset: VisualizerPreset) => {
-    setActivePresetId(preset.id)
-
     // Apply engine type and full signature configuration to composition
     updateVisualizer({
       type: preset.engineType,
       ...preset.config,
+      presetId: preset.id,
+      bassReactivity: normalizeBassConfig(preset.config.bassReactivity),
     })
 
     // Track in Recents
@@ -97,7 +96,9 @@ export const VisualizersPanel: React.FC = () => {
 
     return VISUALIZER_PRESETS.filter((preset) => {
       // Category filter
-      if (selectedCategory === 'Favorites') {
+      if (selectedCategory === 'Bass Pack') {
+        if (!preset.tags.includes('Bass Pack')) return false
+      } else if (selectedCategory === 'Favorites') {
         if (!favorites.includes(preset.id)) return false
       } else if (selectedCategory === 'Recent') {
         if (!recents.includes(preset.id)) return false
@@ -126,12 +127,19 @@ export const VisualizersPanel: React.FC = () => {
     })
   }, [searchQuery, selectedCategory, favorites, recents])
 
+  const pageCount = Math.max(1, Math.ceil(filteredPresets.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount - 1)
+  const visiblePresets = filteredPresets.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
+  useEffect(() => { setPage(0) }, [searchQuery, selectedCategory])
+  useEffect(() => { listRef.current?.scrollTo({ top: 0 }) }, [currentPage, searchQuery, selectedCategory])
+
   // Compute category count map for badge indicators
   const categoryCounts = useMemo(() => {
     const map: Record<string, number> = {
       All: VISUALIZER_PRESETS.length,
       Favorites: favorites.length,
       Recent: recents.length,
+      'Bass Pack': VISUALIZER_PRESETS.filter(p => p.tags.includes('Bass Pack')).length,
     }
     VISUALIZER_PRESETS.forEach((p) => {
       map[p.category] = (map[p.category] || 0) + 1
@@ -151,12 +159,12 @@ export const VisualizersPanel: React.FC = () => {
                 Visualizer Browser
               </h2>
               <span className="text-3xs text-d2-textSubtle font-mono">
-                {VISUALIZER_PRESETS.length} Studio Audio-Reactive Styles
+                {VISUALIZER_PRESETS.length} presets · 200 new bass styles
               </span>
             </div>
           </div>
           <span className="px-2 py-0.5 rounded text-3xs font-mono font-bold bg-d2-accent/20 text-indigo-300 border border-d2-accent/40 shadow-xs">
-            v0.2.0 PRO
+            BASS PACK
           </span>
         </div>
 
@@ -166,6 +174,7 @@ export const VisualizersPanel: React.FC = () => {
           <input
             type="text"
             placeholder="Search styles, tags, neon, 3D, bass..."
+            aria-label="Search visualizer presets"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-7 pl-8 pr-7 rounded bg-d2-canvas border border-d2-border text-2xs text-white placeholder:text-d2-textSubtle focus:outline-none focus:border-d2-accent focus:ring-1 focus:ring-d2-accent/40 transition-all"
@@ -181,7 +190,7 @@ export const VisualizersPanel: React.FC = () => {
         </div>
 
         {/* Category Navigation Pills */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+        <ScrollableCategoryStrip label="Visualizer categories">
           {ORDERED_CATEGORIES.map((cat) => {
             const isCatSelected = selectedCategory === cat
             const count = categoryCounts[cat] || 0
@@ -190,10 +199,11 @@ export const VisualizersPanel: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-3xs font-medium whitespace-nowrap transition-all ${
+                aria-pressed={isCatSelected}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded text-2xs font-medium whitespace-nowrap transition-colors ${
                   isCatSelected
-                    ? 'bg-d2-accent text-white font-semibold shadow-xs ring-1 ring-d2-accent/50'
-                    : 'bg-d2-surface border border-d2-borderSubtle text-d2-textSubtle hover:text-white hover:border-d2-border hover:bg-d2-surfaceElevated/60'
+                    ? 'bg-d2-surfaceActive text-d2-accent'
+                    : 'text-d2-textMuted hover:text-white hover:bg-d2-surfaceElevated/60'
                 }`}
               >
                 {cat === 'Favorites' && <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />}
@@ -211,11 +221,11 @@ export const VisualizersPanel: React.FC = () => {
               </button>
             )
           })}
-        </div>
+        </ScrollableCategoryStrip>
       </div>
 
       {/* Preset Cards List */}
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+      <div ref={listRef} data-preset-list className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
         {filteredPresets.length === 0 ? (
           <div className="py-14 text-center text-d2-textSubtle text-2xs space-y-2">
             <Layers className="w-8 h-8 mx-auto text-d2-textSubtle/40" />
@@ -235,11 +245,10 @@ export const VisualizersPanel: React.FC = () => {
             )}
           </div>
         ) : (
-          filteredPresets.map((preset) => {
+          visiblePresets.map((preset) => {
             const isSelected =
-              activePresetId === preset.id ||
-              (visualizer.type === preset.engineType &&
-                visualizer.primaryColor === preset.config.primaryColor)
+              visualizer.presetId === preset.id ||
+              (!visualizer.presetId && Object.entries(preset.config).every(([key, value]) => visualizer[key as keyof typeof visualizer] === value))
             const isFav = favorites.includes(preset.id)
             const is3D = preset.renderType === '3d'
             const primaryColor = preset.config.primaryColor || '#6366f1'
@@ -248,25 +257,32 @@ export const VisualizersPanel: React.FC = () => {
             return (
               <div
                 key={preset.id}
+                data-preset-id={preset.id}
                 onClick={() => handleApplyPreset(preset)}
-                className={`p-1.5 rounded-lg border transition-all cursor-pointer group flex items-center gap-2.5 relative overflow-hidden ${
+                role="button"
+                tabIndex={0}
+                aria-label={`Apply ${preset.name}`}
+                aria-pressed={isSelected}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    handleApplyPreset(preset)
+                  }
+                }}
+                className={`p-2 rounded border transition-colors cursor-pointer group flex items-center gap-3 relative overflow-hidden ${
                   isSelected
-                    ? 'bg-d2-accent/15 border-d2-accent shadow-sm ring-1 ring-d2-accent/50'
-                    : 'bg-d2-surfaceElevated/40 border-d2-borderSubtle hover:border-d2-border hover:bg-d2-surfaceElevated/80'
+                    ? 'bg-d2-surfaceActive border-d2-accent/60'
+                    : 'bg-d2-surface border-transparent hover:border-d2-border hover:bg-d2-surfaceElevated'
                 }`}
               >
                 {/* Active Indicator Left Strip */}
                 {isSelected && (
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-1"
-                    style={{
-                      background: `linear-gradient(180deg, ${primaryColor}, ${accentColor})`,
-                    }}
-                  />
+                    <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-d2-accent" />
                 )}
 
                 {/* Animated Canvas Thumbnail Preview */}
-                <div className="w-16 h-11 rounded-md bg-black/80 border border-white/10 relative overflow-hidden shrink-0 group-hover:border-white/20 transition-all shadow-inner">
+                <div className="w-16 h-11 rounded bg-black border border-white/10 relative overflow-hidden shrink-0">
                   <VisualizerThumbCanvas
                     pluginId={preset.engineType}
                     renderType={preset.renderType}
@@ -284,7 +300,7 @@ export const VisualizersPanel: React.FC = () => {
                 <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
                   <div className="flex items-center justify-between gap-1">
                     <span
-                      className={`text-2xs font-semibold truncate tracking-tight ${
+                      className={`text-xs font-medium truncate ${
                         isSelected ? 'text-white' : 'text-d2-text group-hover:text-white'
                       }`}
                     >
@@ -294,9 +310,10 @@ export const VisualizersPanel: React.FC = () => {
                       type="button"
                       onClick={(e) => toggleFavorite(preset.id, e)}
                       className={`p-0.5 rounded hover:bg-d2-surface transition-colors shrink-0 ${
-                        isFav ? 'text-amber-400' : 'text-d2-textSubtle hover:text-white opacity-0 group-hover:opacity-100'
+                        isFav ? 'text-d2-text' : 'text-d2-textSubtle hover:text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
                       }`}
                       title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+                      aria-label={`${isFav ? 'Remove' : 'Add'} ${preset.name} ${isFav ? 'from' : 'to'} favorites`}
                     >
                       <Star className={`w-3 h-3 ${isFav ? 'fill-current' : ''}`} />
                     </button>
@@ -304,7 +321,7 @@ export const VisualizersPanel: React.FC = () => {
 
                   {/* Category Pill & Color Dots */}
                   <div className="flex items-center justify-between gap-1 text-3xs text-d2-textSubtle font-mono">
-                    <span className="px-1.5 py-0.2 rounded bg-d2-canvas/80 text-d2-textMuted border border-d2-borderSubtle text-[9px]">
+                    <span className="text-d2-textSubtle text-2xs font-sans">
                       {preset.category}
                     </span>
 
@@ -334,6 +351,13 @@ export const VisualizersPanel: React.FC = () => {
           })
         )}
       </div>
+      <nav aria-label="Visualizer preset pages" className="shrink-0 flex items-center justify-between gap-2 p-2.5 border-t border-d2-border text-2xs">
+        <button type="button" aria-label="Previous preset page" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}
+          className="px-2 py-1 rounded border border-d2-border text-d2-textMuted hover:bg-d2-surfaceElevated disabled:opacity-40">Previous</button>
+        <span className="text-d2-textSubtle" aria-live="polite">{filteredPresets.length ? currentPage * PAGE_SIZE + 1 : 0}–{Math.min((currentPage + 1) * PAGE_SIZE, filteredPresets.length)} / {filteredPresets.length}</span>
+        <button type="button" aria-label="Next preset page" disabled={currentPage >= pageCount - 1} onClick={() => setPage(currentPage + 1)}
+          className="px-2 py-1 rounded border border-d2-border text-d2-textMuted hover:bg-d2-surfaceElevated disabled:opacity-40">Next</button>
+      </nav>
     </div>
   )
 }

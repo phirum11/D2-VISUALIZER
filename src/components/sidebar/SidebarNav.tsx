@@ -6,7 +6,6 @@ import {
   Type,
   Sparkles,
   LayoutTemplate,
-  Download,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react'
@@ -26,7 +25,6 @@ const tabs: TabItem[] = [
   { id: 'text', label: 'Text & Typography', icon: Type },
   { id: 'effects', label: 'Post-Effects', icon: Sparkles },
   { id: 'templates', label: 'Visualizer Templates', icon: LayoutTemplate },
-  { id: 'export', label: 'Video Export', icon: Download },
 ]
 
 export const SidebarNav: React.FC = () => {
@@ -48,15 +46,16 @@ export const SidebarNav: React.FC = () => {
                   }
                   setActiveTab(tab.id)
                 }}
-                className={`w-9 h-9 rounded-lg relative flex items-center justify-center transition-all ${
+                className={`w-9 h-9 rounded relative flex items-center justify-center transition-colors ${
                   isActive
-                    ? 'bg-d2-accent text-white shadow-md shadow-d2-accent/30 font-semibold'
+                    ? 'bg-d2-surfaceActive text-d2-accent'
                     : 'text-d2-textMuted hover:text-white hover:bg-d2-surfaceElevated'
                 }`}
                 aria-label={tab.label}
+                aria-pressed={isActive}
               >
                 {isActive && (
-                  <span className="absolute -left-1.5 top-2 bottom-2 w-1 rounded-r bg-white" />
+                  <span className="absolute -left-1.5 top-2 bottom-2 w-0.5 bg-d2-accent" />
                 )}
                 <Icon className="w-4 h-4" />
               </button>
@@ -75,6 +74,7 @@ export const SidebarNav: React.FC = () => {
             onClick={toggleSidebar}
             className="w-9 h-9 rounded flex items-center justify-center text-d2-textSubtle hover:text-white hover:bg-d2-surfaceElevated transition-colors"
             aria-label="Toggle Sidebar"
+            aria-expanded={!isSidebarCollapsed}
           >
             {isSidebarCollapsed ? (
               <PanelLeftOpen className="w-4 h-4 text-d2-accent" />

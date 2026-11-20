@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import {
   Download,
   Film,
@@ -18,6 +18,7 @@ import {
 } from '@/stores/exportStore'
 import { useAudioStore } from '@/stores/audioStore'
 import { usePreviewStore } from '@/stores/previewStore'
+import { Select } from '@/components/ui/Select'
 
 export const ExportPanel: React.FC = () => {
   const {
@@ -45,7 +46,6 @@ export const ExportPanel: React.FC = () => {
     setVideoCodec,
     setAudioBitrate,
     setFileName,
-    detectEncoders,
     selectOutputFolder,
     startExport,
     cancelExport,
@@ -54,11 +54,8 @@ export const ExportPanel: React.FC = () => {
   } = useExportStore()
 
   const currentTrack = useAudioStore((s) => s.currentTrack)
-  const duration = currentTrack?.duration || usePreviewStore((s) => s.duration) || 10
-
-  useEffect(() => {
-    detectEncoders()
-  }, [detectEncoders])
+  const previewDuration = usePreviewStore((s) => s.duration)
+  const duration = currentTrack?.duration || previewDuration || 10
 
   const formatSeconds = (sec: number) => {
     const m = Math.floor(sec / 60)
@@ -67,16 +64,11 @@ export const ExportPanel: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full select-none text-xs">
+    <div className="flex flex-col h-full min-h-0 select-none text-xs">
       {/* Header */}
       <div className="p-3 border-b border-d2-border flex items-center justify-between">
         <div>
-          <h2 className="font-bold text-white uppercase tracking-wider text-2xs">
-            Video Export Engine
-          </h2>
-          <span className="text-2xs text-d2-textSubtle">
-            Deterministic offline rendering via FFmpeg
-          </span>
+          <span className="text-2xs text-d2-textMuted">Offline rendering via FFmpeg · H.264 / MP4</span>
         </div>
         {hasNvenc && (
           <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-3xs font-medium inline-flex items-center gap-1">
@@ -86,7 +78,7 @@ export const ExportPanel: React.FC = () => {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
         {/* Render Progress Modal / Card if Exporting */}
         {isExporting || exportStage === 'completed' || exportStage === 'error' ? (
           <div className="p-4 rounded-xl bg-d2-surfaceElevated border border-d2-border shadow-lg space-y-3.5">
@@ -194,6 +186,7 @@ export const ExportPanel: React.FC = () => {
           </div>
         ) : null}
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Format / Resolution Presets */}
         <div className="space-y-2">
           <span className="text-2xs font-semibold text-d2-text uppercase tracking-wider flex items-center justify-between">
@@ -204,10 +197,12 @@ export const ExportPanel: React.FC = () => {
             {RESOLUTION_PRESETS.map((preset) => {
               const isSelected = selectedPresetId === preset.id
               return (
-                <div
-                  key={preset.id}
-                  onClick={() => setPreset(preset.id)}
-                  className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between ${
+                 <button type="button"
+                   key={preset.id}
+                   onClick={() => setPreset(preset.id)}
+                   aria-pressed={isSelected}
+                   disabled={isExporting}
+                   className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed ${
                     isSelected
                       ? 'bg-d2-accent/15 border-d2-accent shadow-sm'
                       : 'bg-d2-surfaceElevated/40 border-d2-borderSubtle hover:border-d2-border'
@@ -217,79 +212,69 @@ export const ExportPanel: React.FC = () => {
                     <span className="font-semibold text-white block text-xs">
                       {preset.name}
                     </span>
-                    <span className="text-3xs text-d2-textSubtle block truncate">
-                      {preset.description}
-                    </span>
+                     <span className="text-3xs text-d2-textSubtle block truncate">
+                       {preset.description}
+                     </span>
                   </div>
-                  <span className="text-2xs font-mono text-cyan-400 font-medium shrink-0">
-                    {preset.width}×{preset.height}
-                  </span>
-                </div>
+                   <span className="text-2xs font-mono text-cyan-400 font-medium shrink-0">
+                     {preset.width}×{preset.height}
+                   </span>
+                 </button>
               )
             })}
           </div>
         </div>
 
+        <div className="space-y-4">
         {/* Frame Rate & Codec Grid */}
         <div className="grid grid-cols-2 gap-2.5">
           <div className="space-y-1.5">
-            <span className="text-2xs font-medium text-d2-textSubtle">Frame Rate</span>
-            <select
-              value={fps}
-              onChange={(e) => setFps(parseInt(e.target.value))}
-              className="w-full bg-d2-surfaceElevated border border-d2-border rounded px-2.5 py-1.5 text-2xs text-white focus:outline-none focus:border-d2-accent font-mono"
-            >
-              <option value="24">24 FPS (Cinema)</option>
-              <option value="30">30 FPS (Standard)</option>
-              <option value="50">50 FPS (PAL)</option>
-              <option value="60">60 FPS (Smooth 60p)</option>
-            </select>
+            <Select label="Frame Rate" value={String(fps)} disabled={isExporting}
+              onChange={value => setFps(parseInt(value, 10))}
+              options={[
+                { value: '24', label: '24 FPS', description: 'Cinema' },
+                { value: '30', label: '30 FPS', description: 'Standard' },
+                { value: '50', label: '50 FPS', description: 'PAL' },
+                { value: '60', label: '60 FPS', description: 'Smooth motion' },
+              ]} />
           </div>
 
           <div className="space-y-1.5">
-            <span className="text-2xs font-medium text-d2-textSubtle">Video Encoder</span>
-            <select
+            <Select label="Video Encoder" disabled={isExporting}
               value={videoCodec}
-              onChange={(e) => setVideoCodec(e.target.value as 'auto' | 'h264_nvenc' | 'libx264')}
-              className="w-full bg-d2-surfaceElevated border border-d2-border rounded px-2.5 py-1.5 text-2xs text-white focus:outline-none focus:border-d2-accent"
-            >
-              <option value="auto">
-                Auto {hasNvenc ? '(NVENC GPU)' : '(CPU libx264)'}
-              </option>
-              {hasNvenc && <option value="h264_nvenc">NVIDIA NVENC (GPU)</option>}
-              <option value="libx264">x264 Software (CPU)</option>
-            </select>
+              onChange={value => setVideoCodec(value as 'auto' | 'h264_nvenc' | 'libx264')}
+              options={[
+                { value: 'auto', label: 'Auto', description: hasNvenc ? 'NVENC GPU' : 'CPU libx264' },
+                ...(hasNvenc ? [{ value: 'h264_nvenc', label: 'NVIDIA NVENC', description: 'GPU encoding' }] : []),
+                { value: 'libx264', label: 'x264 Software', description: 'CPU encoding' },
+              ]} />
           </div>
         </div>
 
         {/* Quality Preset & Audio Bitrate Grid */}
         <div className="grid grid-cols-2 gap-2.5">
           <div className="space-y-1.5">
-            <span className="text-2xs font-medium text-d2-textSubtle">Video Quality</span>
-            <select
+            <Select label="Video Quality" disabled={isExporting}
               value={quality}
-              onChange={(e) => setQuality(e.target.value as QualityPresetId)}
-              className="w-full bg-d2-surfaceElevated border border-d2-border rounded px-2.5 py-1.5 text-2xs text-white focus:outline-none focus:border-d2-accent"
-            >
-              <option value="draft">Draft (6 Mbps)</option>
-              <option value="balanced">Balanced (10 Mbps)</option>
-              <option value="high">High Quality (18 Mbps)</option>
-              <option value="pro">Pro Master (32 Mbps)</option>
-            </select>
+              onChange={value => setQuality(value as QualityPresetId)}
+              options={[
+                { value: 'draft', label: 'Draft', description: '6 Mbps' },
+                { value: 'balanced', label: 'Balanced', description: '10 Mbps' },
+                { value: 'high', label: 'High Quality', description: '18 Mbps' },
+                { value: 'pro', label: 'Pro Master', description: '32 Mbps' },
+              ]} />
           </div>
 
           <div className="space-y-1.5">
-            <span className="text-2xs font-medium text-d2-textSubtle">Audio Bitrate</span>
-            <select
+            <Select label="Audio Bitrate" disabled={isExporting}
               value={audioBitrate}
-              onChange={(e) => setAudioBitrate(e.target.value)}
-              className="w-full bg-d2-surfaceElevated border border-d2-border rounded px-2.5 py-1.5 text-2xs text-white focus:outline-none focus:border-d2-accent font-mono"
-            >
-              <option value="128k">128 kbps AAC</option>
-              <option value="192k">192 kbps AAC (Standard)</option>
-              <option value="256k">256 kbps AAC (High)</option>
-              <option value="320k">320 kbps AAC (Studio)</option>
-            </select>
+              onChange={setAudioBitrate}
+              options={[
+                { value: '128k', label: '128 kbps AAC' },
+                { value: '192k', label: '192 kbps AAC', description: 'Standard' },
+                { value: '256k', label: '256 kbps AAC', description: 'High quality' },
+                { value: '320k', label: '320 kbps AAC', description: 'Studio' },
+              ]} />
           </div>
         </div>
 
@@ -306,12 +291,14 @@ export const ExportPanel: React.FC = () => {
               <input
                 type="text"
                 readOnly
+                aria-label="Export Directory"
                 value={outputFolder || '(Default application folder)'}
                 placeholder="Select output folder..."
                 className="flex-1 bg-d2-canvas border border-d2-border rounded px-2.5 py-1 text-2xs text-d2-text font-mono truncate"
               />
               <button
-                onClick={selectOutputFolder}
+                 onClick={selectOutputFolder}
+                 disabled={isExporting}
                 className="px-2.5 py-1 rounded bg-d2-surfaceElevated hover:bg-d2-surfaceActive border border-d2-border text-d2-text hover:text-white transition-colors shrink-0 text-2xs inline-flex items-center gap-1"
                 title="Browse folder"
               >
@@ -326,7 +313,9 @@ export const ExportPanel: React.FC = () => {
             <span className="text-3xs text-d2-textSubtle">File Name (.mp4)</span>
             <input
               type="text"
-              value={fileName}
+               value={fileName}
+               disabled={isExporting}
+               aria-label="Export File Name"
               onChange={(e) => setFileName(e.target.value)}
               placeholder="D2_Visualizer_Export.mp4"
               className="w-full bg-d2-canvas border border-d2-border rounded px-2.5 py-1 text-2xs text-white font-mono focus:outline-none focus:border-d2-accent"
@@ -356,16 +345,27 @@ export const ExportPanel: React.FC = () => {
               {currentTrack?.name || 'Built-in Demo Signal'}
             </span>
           </div>
+         </div>
+
+        </div>
         </div>
 
-        {/* Main Export Action Button */}
+        {lastExportedPath && !isExporting && exportStage === 'idle' && (
+          <div className="p-2 rounded bg-d2-surfaceElevated border border-d2-border text-center">
+            <span className="text-3xs text-d2-textSubtle block truncate">Last export: {lastExportedPath}</span>
+          </div>
+        )}
+      </div>
+
+         {/* Main Export Action Button */}
+        <div className="shrink-0 px-5 py-3 border-t border-d2-borderSubtle">
         <button
           onClick={startExport}
           disabled={isExporting}
-          className={`w-full py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg ${
+           className={`w-full py-2.5 px-4 rounded-lg font-semibold text-xs flex items-center justify-center gap-2 transition-colors ${
             isExporting
               ? 'bg-d2-surfaceActive text-d2-textSubtle cursor-not-allowed border border-d2-border'
-              : 'bg-d2-accent hover:bg-d2-accentHover text-white shadow-d2-accent/25 hover:shadow-d2-accent/40 active:scale-[0.99]'
+               : 'bg-d2-accent hover:bg-d2-accentHover text-d2-canvas'
           }`}
         >
           {isExporting ? (
@@ -376,19 +376,12 @@ export const ExportPanel: React.FC = () => {
           ) : (
             <>
               <Download className="w-4 h-4" />
-              Export Video via FFmpeg
+               Export Video
             </>
           )}
         </button>
 
-        {lastExportedPath && !isExporting && exportStage === 'idle' && (
-          <div className="p-2 rounded bg-d2-surfaceElevated border border-d2-border text-center">
-            <span className="text-3xs text-d2-textSubtle block truncate">
-              Last export: {lastExportedPath}
-            </span>
-          </div>
-        )}
-      </div>
+        </div>
     </div>
   )
 }

@@ -7,7 +7,6 @@ export type SidebarTab =
   | 'text'
   | 'effects'
   | 'templates'
-  | 'export'
 
 export type LayerId = 'visualizer' | 'background' | 'text' | 'overlay'
 
@@ -21,6 +20,7 @@ interface UIState {
   timelineHeight: number
   selectedLayer: LayerId
   settingsOpen: boolean
+  exportOpen: boolean
   projectMenuOpen: boolean
 
   // Actions
@@ -33,6 +33,7 @@ interface UIState {
   setTimelineHeight: (height: number) => void
   setSelectedLayer: (layer: LayerId) => void
   setSettingsOpen: (open: boolean) => void
+  setExportOpen: (open: boolean) => void
   setProjectMenuOpen: (open: boolean) => void
 }
 
@@ -46,6 +47,7 @@ export const useUIStore = create<UIState>((set) => ({
   timelineHeight: 210,
   selectedLayer: 'visualizer',
   settingsOpen: false,
+  exportOpen: false,
   projectMenuOpen: false,
 
   setActiveTab: (tab) => set({ activeTab: tab, isSidebarCollapsed: false }),
@@ -56,6 +58,7 @@ export const useUIStore = create<UIState>((set) => ({
   setInspectorWidth: (width) => set({ inspectorWidth: Math.max(260, Math.min(400, width)) }),
   setTimelineHeight: (height) => set({ timelineHeight: Math.max(160, Math.min(480, height)) }),
   setSelectedLayer: (layer) => set({ selectedLayer: layer }),
-  setSettingsOpen: (open) => set({ settingsOpen: open }),
+  setSettingsOpen: (open) => set(open ? { settingsOpen: true, exportOpen: false } : { settingsOpen: false }),
+  setExportOpen: (open) => set(open ? { exportOpen: true, settingsOpen: false } : { exportOpen: false }),
   setProjectMenuOpen: (open) => set({ projectMenuOpen: open }),
 }))

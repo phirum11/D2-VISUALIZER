@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import { AudioEngine } from '@/engine/audio/AudioEngine'
 import { AudioBands } from '@/engine/audio/FrequencyExtractor'
+import { subscribeFrames } from '@/engine/render/FrameScheduler'
+import { useExportStore } from '@/stores/exportStore'
 
 interface LiveAudioMonitorProps {
   isOpen: boolean
@@ -45,12 +47,12 @@ export const LiveAudioMonitor: React.FC<LiveAudioMonitorProps> = ({
     setFftSize(engine.getFftSize())
     setEngineStatus(engine.getStatus())
 
-    let animId: number
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
 
-    const updateFrame = () => {
-      const frame = engine.getLiveFrameData()
+    const updateFrame = (frameTimestamp: number) => {
+      if (useExportStore.getState().isExporting) return
+      const frame = engine.getLiveFrameData(frameTimestamp)
       setBands(frame.bands)
       setBassEnergy(frame.bassEnergy)
       setMidEnergy(frame.midEnergy)
@@ -66,7 +68,7 @@ export const LiveAudioMonitor: React.FC<LiveAudioMonitorProps> = ({
         ctx.clearRect(0, 0, w, h)
 
         // Draw frequency grid lines
-        ctx.strokeStyle = '#1e2330'
+        ctx.strokeStyle = '#2f3e52'
         ctx.lineWidth = 1
         ctx.beginPath()
         ctx.moveTo(0, h * 0.25)
@@ -90,23 +92,18 @@ export const LiveAudioMonitor: React.FC<LiveAudioMonitorProps> = ({
 
           // Gradient color: Cyan for bass, Indigo for mid, Violet for treble
           const grad = ctx.createLinearGradient(0, h, 0, 0)
-          grad.addColorStop(0, '#06b6d4')
-          grad.addColorStop(0.5, '#6366f1')
-          grad.addColorStop(1, '#a855f7')
+          grad.addColorStop(0, '#d0c5e9')
+          grad.addColorStop(0.5, '#b5a1df')
+          grad.addColorStop(1, '#75629f')
 
           ctx.fillStyle = grad
           ctx.fillRect(x, y, barW, barH)
         }
       }
 
-      animId = requestAnimationFrame(updateFrame)
     }
 
-    animId = requestAnimationFrame(updateFrame)
-
-    return () => {
-      if (animId) cancelAnimationFrame(animId)
-    }
+    return subscribeFrames(updateFrame, 15)
   }, [isOpen])
 
   if (!isOpen) return null

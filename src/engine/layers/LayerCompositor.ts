@@ -8,6 +8,7 @@ import { VisualizerRenderContext } from '@/engine/visualizers/types'
 import { OverlayRenderer } from '@/engine/overlay/OverlayRenderer'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { TimelineEngine } from '@/engine/timeline/TimelineEngine'
+import { BassEnvelopeFollower } from '@/engine/audio/BassReactivity'
 
 export interface CompositeRenderContext {
   canvas: HTMLCanvasElement
@@ -18,6 +19,7 @@ export interface CompositeRenderContext {
   width: number
   height: number
   dpr: number
+  renderScale?: number
   showSafeGuides: boolean
   isPlaying: boolean
   audioTime: number
@@ -31,6 +33,8 @@ export class LayerCompositor {
   private cinematicEffects = CinematicEffects.getInstance()
   private visualizerRegistry = VisualizerRegistry.getInstance()
   private overlayRenderer = OverlayRenderer.getInstance()
+  private bassFollower = new BassEnvelopeFollower()
+  private bassCanvas: HTMLCanvasElement | null = null
 
   private constructor() {}
 
@@ -183,16 +187,27 @@ export class LayerCompositor {
       ctx.globalAlpha = (visualizerLayer?.opacity ?? 1) * (activeVisualizerConfig.opacity ?? 1)
 
       const activeVisualizer = this.visualizerRegistry.setActiveVisualizer(activeVisualizerConfig.type)
+      if (this.bassCanvas !== canvas) {
+        this.bassFollower.reset()
+        this.bassCanvas = canvas
+      }
+      const reactiveFrame = this.bassFollower.apply(audioFrame, activeVisualizerConfig.bassReactivity, timestamp)
+      const bassConfig = this.bassFollower.getConfig()
+      const bassEnvelope = this.bassFollower.getResponse().envelope
       const vizContext: VisualizerRenderContext = {
         canvas,
         ctx2d: ctx,
-        audioFrame,
-        config: activeVisualizerConfig,
+        audioFrame: reactiveFrame,
+        config: bassConfig.enabled ? { ...activeVisualizerConfig,
+          scale: activeVisualizerConfig.scale * (1 + bassEnvelope * bassConfig.pulseScale),
+          glow: Math.min(80, activeVisualizerConfig.glow + bassEnvelope * bassConfig.glowBoost),
+        } : activeVisualizerConfig,
         effects,
         time: timestamp,
         width: w,
         height: h,
         dpr,
+        renderScale: context.renderScale,
       }
       activeVisualizer.render(vizContext)
       ctx.restore()
@@ -279,6 +294,8 @@ export class LayerCompositor {
   }
 
   public dispose(): void {
+    this.bassFollower.reset()
+    this.bassCanvas = null
     this.bgManager.dispose()
     this.visualizerRegistry.disposeAll()
     this.overlayRenderer.clearCache()

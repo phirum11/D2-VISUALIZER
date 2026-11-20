@@ -7,6 +7,7 @@ import { registerIpcHandlers } from './ipc/windowIpc'
 import { registerMediaIpcHandlers } from './ipc/mediaIpc'
 import { registerExportIpcHandlers } from './ipc/exportIpc'
 import { registerProjectIpc } from './ipc/projectIpc'
+import { registerHardwareIpcHandlers } from './ipc/hardwareIpc'
 import { FFmpegExporter } from './export/FFmpegExporter'
 import { FFmpegPath } from './export/FFmpegPath'
 
@@ -54,7 +55,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 1200,
     minHeight: 700,
-    backgroundColor: '#0b0d11',
+    backgroundColor: '#0b0f17',
     frame: false, // Frameless window with custom D2 title bar
     show: false, // Prevents white flash before rendering
     webPreferences: {
@@ -71,6 +72,7 @@ function createWindow(): void {
   registerMediaIpcHandlers(mainWindow)
   registerExportIpcHandlers(mainWindow)
   registerProjectIpc()
+  registerHardwareIpcHandlers(mainWindow)
 
   // Prevent opening external URLs inside Electron window
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -823,7 +825,7 @@ function createWindow(): void {
             const uiStore = window.__D2_UI_STORE__;
             await audioStore.getState().importFromPath(${JSON.stringify(testAudioPath)}, 'Test Beat Track 128BPM.wav');
             if (uiStore) {
-              uiStore.getState().setActiveTab('export');
+              uiStore.getState().setExportOpen(true);
             }
           })()
         `)

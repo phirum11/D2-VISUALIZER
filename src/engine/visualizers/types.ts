@@ -28,6 +28,7 @@ export interface VisualizerRenderContext {
   width: number
   height: number
   dpr: number
+  renderScale?: number
 }
 
 export interface IVisualizerPlugin {

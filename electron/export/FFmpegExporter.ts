@@ -2,6 +2,7 @@ import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { FFmpegPath } from './FFmpegPath'
+import { HardwareProfileService } from '../hardware/HardwareProfileService'
 
 export interface ExportStartOptions {
   width: number
@@ -39,6 +40,8 @@ export class FFmpegExporter {
    * Checks if NVENC hardware acceleration is available on the system
    */
   public async checkNvencSupport(): Promise<boolean> {
+    const profile = await HardwareProfileService.getSaved().catch(() => null)
+    if (profile) return profile.nvencSupported
     if (this.isNvencAvailable !== null) return this.isNvencAvailable
 
     return new Promise<boolean>((resolve) => {
